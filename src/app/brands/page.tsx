@@ -1,10 +1,10 @@
 // File: app/brands/page.tsx
 
 import { supabaseServerClient } from '@/lib/supabase/server';
-import { Brand } from '@/types';
+import { Brands } from '@/types';
 import BrandCard from '@/components/BrandCard';
 
-async function getBrands(): Promise<Brand[]> {
+async function getBrands(): Promise<Brands[]> {
   const supabase = supabaseServerClient();
   const { data, error } = await supabase.from('brands').select('*').order('name');
   if (error) { console.error('Error fetching brands:', error); return []; }

@@ -4,9 +4,9 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Brand } from '@/types';
+import { Brands } from '@/types';
 
-export default function BrandCard({ brand }: { brand: Brand }) {
+export default function BrandCard({ brand }: { brand: Brands }) {
   return (
     <Link 
       href={`/brands/${brand.slug}`}
