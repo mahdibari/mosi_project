@@ -6,8 +6,8 @@ import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
-import { ArrowRight, MapPin, Phone, User, CreditCard, ShoppingCart, ChevronDown, Truck, RefreshCcw, HelpCircle } from 'lucide-react';
+
+import { MapPin, Phone, User, CreditCard, ChevronDown, Truck, RefreshCcw, HelpCircle } from 'lucide-react';
 import { formatToToman } from '@/utils/formatPrice';
 import Image from 'next/image';
 
