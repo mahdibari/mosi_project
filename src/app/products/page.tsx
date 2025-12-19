@@ -2,15 +2,14 @@
 
 import ProductListClient from './ProductListClient';
 import { supabaseServerClient } from '@/lib/supabase/server';
-//import { Product, Category } from '@/types'; 
 
 async function getProducts() {
   const supabase = supabaseServerClient();
   const { data: products, error } = await supabase
     .from('products')
-    .select(`id, name, description, price, image_url, discount_percentage, stock_quantity, is_bestseller, average_rating, total_reviews, total_likes, created_at, category_id`)
+    .select(`id, name, description, price, image_url, discount_percentage, stock_quantity, is_bestseller, average_rating, total_reviews, total_likes, created_at, category_id, brand_id, brand_tag`) // <-- brand_id و brand_tag اضافه شدند
     .order('created_at', { ascending: false })
-    .limit(50); // تعداد بیشتری برای فیلتر کردن
+    .limit(50);
 
   if (error) {
     console.error('Error fetching products:', error);
@@ -35,7 +34,7 @@ async function getCategories() {
 
 export default async function ProductListPage() {
   const products = await getProducts();
-  const categories = await getCategories(); // دریافت دسته‌بندی‌ها
+  const categories = await getCategories();
 
   // پاس دادن داده‌ها به کامپوننت کلاینت
   return <ProductListClient products={products} categories={categories} />;
