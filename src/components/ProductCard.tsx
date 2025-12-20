@@ -9,10 +9,11 @@ import { supabase } from '@/lib/supabase';
 import { type User } from '@supabase/supabase-js';
 import { Product } from '@/types';
 import ProductStructuredData from './ProductStructuredData';
-import { ShoppingCart, Heart, Eye, Tag, Check } from 'lucide-react'; // <-- ۱. آیکون Check را اضافه کنید
+import { ShoppingCart, Heart, Eye, Tag, Check } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { formatPrice } from '@/lib/utils';
-import toast from 'react-hot-toast'; // <-- ۲. toast را ایمپورت کنید
+import Toast from './Toast'; // تغییر این خط
+
 
 export default function ProductCard({ product }: { product: Product }) {
   const [likes, setLikes] = useState(product.total_likes);
@@ -20,6 +21,9 @@ export default function ProductCard({ product }: { product: Product }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLiking, setIsLiking] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [showToast, setShowToast] = useState(false); // اضافه کردن state برای نمایش toast
+  const [toastMessage, setToastMessage] = useState(''); // اضافه کردن state برای پیام toast
+  const [toastType, setToastType] = useState<'success' | 'error'>('success'); // اضافه کردن state برای نوع toast
   const { addToCart } = useCart();
 
   useEffect(() => {
@@ -74,15 +78,10 @@ export default function ProductCard({ product }: { product: Product }) {
     setIsAddingToCart(true);
     try {
       await addToCart(product);
-      // <-- ۳. اینجا نوتیفیکیشن موفقیت را نمایش دهید -->
-      toast.success(`${product.name} به سبد خرید اضافه شد`, {
-        icon: <Check className="h-5 w-5" />,
-        style: {
-            background: '#10b981',
-            color: '#fff',
-        },
-      });
-    
+      // نمایش toast سفارشی
+      setToastMessage(`${product.name} به سبد خرید اضافه شد`);
+      setToastType('success');
+      setShowToast(true);
     } finally {
       setIsAddingToCart(false);
     }
@@ -174,6 +173,14 @@ export default function ProductCard({ product }: { product: Product }) {
           <p className="text-center text-xs text-gray-500 mt-3">{likes} نفر این محصول را دوست داشتند</p>
         </div>
       </div>
+      
+      {/* اضافه کردن کامپوننت Toast */}
+      <Toast
+        message={toastMessage}
+        type={toastType}
+        isVisible={showToast}
+        onClose={() => setShowToast(false)}
+      />
     </>
   );
 }
