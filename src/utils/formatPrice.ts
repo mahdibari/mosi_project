@@ -1,4 +1,4 @@
 export const formatToToman = (price: number): string => {
-  const tomanPrice = price * 50000; // فرض بر نرخ دلار ۵۰ هزار تومان
-  return `${tomanPrice.toLocaleString('fa-IR')} تومان`;
+  // نمایش قیمت به ریال بدون تبدیل ارزی
+  return `${price.toLocaleString('fa-IR')} ریال`;
 };

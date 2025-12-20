@@ -9,10 +9,10 @@ import { supabase } from '@/lib/supabase';
 import { type User } from '@supabase/supabase-js';
 import { Product } from '@/types';
 import ProductStructuredData from './ProductStructuredData';
-import { ShoppingCart, Heart, Eye, Tag } from 'lucide-react';
+import { ShoppingCart, Heart, Eye, Tag, Check } from 'lucide-react'; // <-- ۱. آیکون Check را اضافه کنید
 import { useCart } from '@/contexts/CartContext';
-import { formatPrice } from '@/lib/utils';
-import Toast from './Toast'; // Import کامپوننت Toast سفارشی
+import { formatToToman } from '@/utils/formatPrice';
+import toast from 'react-hot-toast'; // <-- ۲. toast را ایمپورت کنید
 
 export default function ProductCard({ product }: { product: Product }) {
   const [likes, setLikes] = useState(product.total_likes);
@@ -21,11 +21,6 @@ export default function ProductCard({ product }: { product: Product }) {
   const [isLiking, setIsLiking] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const { addToCart } = useCart();
-
-  // State های مربوط به کامپوننت Toast سفارشی
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -78,28 +73,17 @@ export default function ProductCard({ product }: { product: Product }) {
   const handleAddToCart = async () => {
     setIsAddingToCart(true);
     try {
-      // ۱. ابتدا بررسی می‌کنیم که آیا کاربر وارد شده است یا نه
-      if (!user) {
-        // اگر کاربر وارد نشده بود، یک نوتیفیکیشن خطا نمایش می‌دهیم
-        setToastMessage('برای افزودن به سبد خرید ابتدا وارد شوید');
-        setToastType('error');
-        setShowToast(true);
-        return; // و از ادامه عملیات جلوگیری می‌کنیم
-      }
-
-      // ۲. اگر کاربر وارد شده بود، محصول را به سبد خرید اضافه می‌کنیم
       await addToCart(product);
-      // طبق درخواست شما، برای کاربر وارد شده نوتیفیکیشن موفقیت نمایش داده نمی‌شود
-
-    } catch (error) {
-      // مدیریت خطاهای احتمالی در هنگام افزودن به سبد
-      console.error("Error adding to cart:", error);
-      // در صورت بروز خطا هم یک نوتیفیکیشن نمایش می‌دهیم
-      setToastMessage('خطایی در افزودن به سبد خرید رخ داد. لطفاً دوباره تلاش کنید.');
-      setToastType('error');
-      setShowToast(true);
+      // <-- ۳. اینجا نوتیفیکیشن موفقیت را نمایش دهید -->
+      toast.success(`${product.name} به سبد خرید اضافه شد`, {
+        icon: <Check className="h-5 w-5" />,
+        style: {
+            background: '#10b981',
+            color: '#fff',
+        },
+      });
+    
     } finally {
-      // این بخش همیشه اجرا می‌شود و حالت لودینگ دکمه را برمی‌گرداند
       setIsAddingToCart(false);
     }
   };
@@ -124,9 +108,11 @@ export default function ProductCard({ product }: { product: Product }) {
           {product.discount_percentage && <span className="absolute right-3 top-3 rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white shadow-lg">%{product.discount_percentage} تخفیف</span>}
         </div>
         
+        {/* بخش اطلاعات محصول - همیشه نمایش داده می‌شود */}
         <div className="p-6 bg-white">
           <Link href={`/product/${product.id}`}><h3 className="text-xl font-bold text-gray-800 mb-2">{product.name}</h3></Link>
           
+          {/* نمایش برند محصول */}
           {product.brand_tag && (
             <div className="flex items-center gap-2 mb-2">
               <Tag className="w-4 h-4 text-gray-500" />
@@ -143,12 +129,13 @@ export default function ProductCard({ product }: { product: Product }) {
           
           <div className="flex items-center justify-between mb-4">
             <div>
-              {product.discount_percentage && <span className="text-xs text-gray-400 line-through">{formatPrice(product.price)}</span>}
-              <span className="mr-2 text-lg font-bold text-green-600">{formatPrice(finalPrice)}</span>
+              {product.discount_percentage && <span className="text-xs text-gray-400 line-through">{formatToToman(product.price)}</span>}
+              <span className="mr-2 text-lg font-bold text-green-600">{formatToToman(finalPrice)}</span>
             </div>
             <span className={`rounded-full px-2 py-1 text-xs ${product.stock_quantity > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{product.stock_quantity > 0 ? 'موجود' : 'ناموجود'}</span>
           </div>
           
+          {/* دکمه‌ها - همیشه نمایش داده می‌شوند */}
           <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-100">
             <button 
               onClick={handleAddToCart}
@@ -187,14 +174,6 @@ export default function ProductCard({ product }: { product: Product }) {
           <p className="text-center text-xs text-gray-500 mt-3">{likes} نفر این محصول را دوست داشتند</p>
         </div>
       </div>
-      
-      {/* کامپوننت Toast سفارشی */}
-      <Toast
-        message={toastMessage}
-        type={toastType}
-        isVisible={showToast}
-        onClose={() => setShowToast(false)}
-      />
     </>
   );
 }
