@@ -12,8 +12,8 @@ import { CartProvider } from '@/contexts/CartContext';
 
 
 export const metadata: Metadata = {
-  title: '76604216',
-  description: '76604216',
+  title: 'فروشگاه پوست',
+  description: 'فروشگاه آنلاین محصولات پوستی',
 };
 
 

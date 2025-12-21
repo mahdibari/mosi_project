@@ -12,17 +12,15 @@ export default function Footer() {
           <div>
             <h3 className="text-lg font-bold mb-4 text-indigo-300">لینک‌های مفید</h3>
             <ul className="space-y-2 text-gray-400">
-              
               <li><a href="/about" className="hover:text-white">درباره ما</a></li>
               <li><a href="/contact" className="hover:text-white">تماس با ما</a></li>
-              
             </ul>
           </div>
           <div>
             <h3 className="text-lg font-bold mb-4 text-indigo-300">تماس با ما</h3>
             <p className="text-gray-400">
-             <br />
-            تلفن:09051415639
+              <br />
+              تلفن:09051415639
             </p>
           </div>
         </div>
@@ -30,6 +28,18 @@ export default function Footer() {
           <p>© ۲۰۲۵ فروشگاه پوست. تمامی حقوق محفوظ است.</p>
         </div>
       </div>
+      <a 
+        referrerPolicy='origin' 
+        target='_blank' 
+        href='https://trustseal.enamad.ir/?id=690006&Code=BYndhTQbxZTbSk0JQxu6LOEXlnA9ss1g'
+      >
+        <img 
+          referrerPolicy='origin' 
+          src='https://trustseal.enamad.ir/logo.aspx?id=690006&Code=BYndhTQbxZTbSk0JQxu6LOEXlnA9ss1g' 
+          alt='' 
+          style={{cursor: 'pointer'}}
+        />
+      </a>
     </footer>
   );
 }
