@@ -8,6 +8,18 @@ export default function Footer() {
             <p className="text-gray-400">
               بهترین دستگاه‌ها و لوازم مراقبت پوست را با کیفیت و قیمت مناسب.
             </p>
+            <a 
+        referrerPolicy='origin' 
+        target='_blank' 
+        href='https://trustseal.enamad.ir/?id=690006&Code=BYndhTQbxZTbSk0JQxu6LOEXlnA9ss1g'
+      >
+        <img 
+          referrerPolicy='origin' 
+          src='https://trustseal.enamad.ir/logo.aspx?id=690006&Code=BYndhTQbxZTbSk0JQxu6LOEXlnA9ss1g' 
+          alt='' 
+          style={{cursor: 'pointer'}}
+        />
+      </a>
           </div>
           <div>
             <h3 className="text-lg font-bold mb-4 text-indigo-300">لینک‌های مفید</h3>
@@ -28,18 +40,7 @@ export default function Footer() {
           <p>© ۲۰۲۵ فروشگاه پوست. تمامی حقوق محفوظ است.</p>
         </div>
       </div>
-      <a 
-        referrerPolicy='origin' 
-        target='_blank' 
-        href='https://trustseal.enamad.ir/?id=690006&Code=BYndhTQbxZTbSk0JQxu6LOEXlnA9ss1g'
-      >
-        <img 
-          referrerPolicy='origin' 
-          src='https://trustseal.enamad.ir/logo.aspx?id=690006&Code=BYndhTQbxZTbSk0JQxu6LOEXlnA9ss1g' 
-          alt='' 
-          style={{cursor: 'pointer'}}
-        />
-      </a>
+      
     </footer>
   );
 }
