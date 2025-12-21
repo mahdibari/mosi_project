@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import Link from 'next/link';
 import { 
-  Mail, 
+   
   Phone, 
   MapPin, 
   MessageSquare, 
@@ -191,8 +191,8 @@ export default function ContactPage() {
               
               <div className="space-y-6">
                 {[
-                  { icon: Phone, label: 'تلفن', value: '۰۲۱-۸۹۰۰۰۰۰۰' },
-                  { icon: Mail, label: 'ایمیل', value: 'support@example.com' },
+                  { icon: Phone, label: 'تلفن', value: '09051415639' },
+                  
                   { icon: MapPin, label: 'آدرس', value: 'تهران، ولیعصر، پلاک ۱۲۳' },
                   { icon: Clock, label: 'ساعات کاری', value: 'شنبه تا چهارشنبه: ۹ الی ۱۷' },
                 ].map((item, index) => (
