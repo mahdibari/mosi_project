@@ -12,8 +12,8 @@ import { CartProvider } from '@/contexts/CartContext';
 
 
 export const metadata: Metadata = {
-  title: 'فروشگاه پوست',
-  description: 'فروشگاه آنلاین محصولات پوستی',
+  title: ' مصی شاپ ',
+  description: 'فروشگاه آنلاین محصولات مراقبت پوستی',
 };
 
 

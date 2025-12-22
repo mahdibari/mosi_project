@@ -31,7 +31,7 @@ export default function Header() {
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex-shrink-0">
               <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent transition-all duration-300 hover:from-indigo-700 hover:to-purple-700">
-                فروشگاه پوست
+                مصی شاپ 
               </span>
             </Link>
 

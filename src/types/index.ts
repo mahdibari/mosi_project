@@ -70,3 +70,13 @@ export interface OrderItem {
   quantity: number;
   price: number;
 }
+
+export interface Article {
+  id: string;
+  slug: string;
+  title: string;
+  content: string;
+  image_url?: string | null; // فیلد جدید برای عکس
+  total_likes: number;
+  created_at: string;
+}

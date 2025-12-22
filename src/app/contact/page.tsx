@@ -193,7 +193,7 @@ export default function ContactPage() {
                 {[
                   { icon: Phone, label: 'تلفن', value: '09051415639' },
                   
-                  { icon: MapPin, label: 'آدرس', value: 'تهران، ولیعصر، پلاک ۱۲۳' },
+                  { icon: MapPin, label: 'آدرس', value: '  تهران خیابان جمهوری بین سه راه جمهوری و شیخ هادی نبش بن بست شهریار پاساژ علاالدین آرایشی طبقه دوم واحد ۲۰۸ ' },
                   { icon: Clock, label: 'ساعات کاری', value: 'شنبه تا چهارشنبه: ۹ الی ۱۷' },
                 ].map((item, index) => (
                   <div key={index} className="flex items-start group">

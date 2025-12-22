@@ -19,7 +19,7 @@ async function getLatestArticles() {
   const supabase = supabaseServerClient();
   const { data, error } = await supabase
     .from('articles')
-    .select('slug, title, created_at')
+    .select('slug, title, created_at, image_url')
     .order('created_at', { ascending: false })
     .limit(6);
 

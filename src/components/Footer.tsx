@@ -4,9 +4,9 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
-            <h3 className="text-xl font-bold mb-4 text-indigo-300">فروشگاه پوست</h3>
+            <h3 className="text-xl font-bold mb-4 text-indigo-300"> فروشگاه محصولات مراقبت پوستی</h3>
             <p className="text-gray-400">
-              بهترین دستگاه‌ها و لوازم مراقبت پوست را با کیفیت و قیمت مناسب.
+             منبع مطمئن شما برای خرید محصولات آرایشی و بهداشتی با کیفیت
             </p>
             <a 
         referrerPolicy='origin' 
@@ -24,8 +24,10 @@ export default function Footer() {
           <div>
             <h3 className="text-lg font-bold mb-4 text-indigo-300">لینک‌های مفید</h3>
             <ul className="space-y-2 text-gray-400">
+            
               <li><a href="/about" className="hover:text-white">درباره ما</a></li>
               <li><a href="/contact" className="hover:text-white">تماس با ما</a></li>
+             
             </ul>
           </div>
           <div>
@@ -37,7 +39,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="border-t border-gray-700 mt-10 pt-6 text-center text-gray-500">
-          <p>© ۲۰۲۵ فروشگاه پوست. تمامی حقوق محفوظ است.</p>
+          <p>© ۲۰۲۵ . تمامی حقوق محفوظ است.</p>
         </div>
       </div>
       
