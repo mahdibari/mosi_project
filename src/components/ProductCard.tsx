@@ -14,6 +14,7 @@ import { useCart } from '@/contexts/CartContext';
 import { formatToToman } from '@/utils/formatPrice';
 import Toast from './Toast'; // Import کامپوننت Toast سفارشی
 
+
 export default function ProductCard({ product }: { product: Product }) {
   const [likes, setLikes] = useState(product.total_likes);
   const [userLiked, setUserLiked] = useState(false);
@@ -21,6 +22,8 @@ export default function ProductCard({ product }: { product: Product }) {
   const [isLiking, setIsLiking] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const { addToCart } = useCart();
+  
+  
 
   // State های مربوط به کامپوننت Toast سفارشی
   const [showToast, setShowToast] = useState(false);

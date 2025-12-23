@@ -51,3 +51,5 @@ export default async function Home() {
   const latestArticles = await getLatestArticles();
   return <HomePageContent products={products} categories={categories} brands={brands} latestArticles={latestArticles} />;
 }
+
+export const revalidate = 120;
