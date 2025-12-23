@@ -28,7 +28,7 @@ export default function ProductStructuredData({ product }: ProductStructuredData
     },
     "offers": {
       "@type": "Offer",
-      "url": `https://your-website.com/product/${product.id}`,
+      "url": `https://www.mosishop.ir/product/${product.id}`,
       "priceCurrency": "IRR",
       "price": product.price,
       "priceValidUntil": "2024-12-31",
