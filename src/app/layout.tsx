@@ -25,7 +25,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fa" dir="rtl">
-      <meta name="google-site-verification" content="FDuK6DMjBk8BFSaxKeR4GzNY1CrIpSRzH3w_fhkxXw0" />
+     
       <body className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-grow">
