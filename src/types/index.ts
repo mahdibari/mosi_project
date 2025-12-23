@@ -2,8 +2,19 @@
 
 export interface User {
   id: string;
-  email: string;
-  display_name?: string;
+  phone: string; // تغییر از email به phone
+  first_name?: string; // اضافه شدن
+  last_name?: string; // اضافه شدن
+  email?: string; // اختیاری کردن ایمیل
+  created_at: string;
+}
+
+export interface UserProfile {
+  id: string;
+  phone: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string; // ایمیل را اختیاری نگه می‌داریم
   created_at: string;
 }
 

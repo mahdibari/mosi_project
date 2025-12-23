@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 export default function LoginForm() {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
@@ -14,16 +14,33 @@ export default function LoginForm() {
     e.preventDefault();
     setError('');
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      // ابتدا کاربر را بر اساس شماره تلفن پیدا می‌کنیم
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('phone', phone)
+        .single();
 
-    if (error) {
-      setError(error.message);
-    } else {
-      router.push('/');
-      router.refresh();
+      if (userError || !userData) {
+        setError('کاربری با این شماره تلفن یافت نشد');
+        return;
+      }
+
+      // سپس با ایمیل موقت کاربر وارد می‌شویم
+      const { error } = await supabase.auth.signInWithPassword({
+        email: userData.email || `${phone}@temp.domain`,
+        password,
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        router.push('/');
+        router.refresh();
+      }
+    } catch (err) {
+      setError('خطایی در ورود رخ داد. لطفاً دوباره تلاش کنید.');
     }
   };
 
@@ -33,11 +50,11 @@ export default function LoginForm() {
       {error && <p className="text-red-500 mb-4">{error}</p>}
       <form onSubmit={handleLogin}>
         <div className="mb-4">
-          <label className="block text-gray-700 mb-2">ایمیل</label>
+          <label className="block text-gray-700 mb-2">شماره تلفن</label>
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
             className="w-full px-4 py-2 border rounded-md"
             required
           />

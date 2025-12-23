@@ -5,9 +5,10 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 
 export default function SignupForm() {
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
 
@@ -15,21 +16,46 @@ export default function SignupForm() {
     e.preventDefault();
     setError('');
 
-    const { error: signupError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          display_name: displayName,
+    try {
+      // ایجاد کاربر با شماره تلفن به عنوان ایمیل موقت
+      const { data: authData, error: signupError } = await supabase.auth.signUp({
+        email: `${phone}@temp.domain`, // استفاده از شماره تلفن به عنوان ایمیل موقت
+        password,
+        options: {
+          data: {
+            phone: phone,
+            first_name: firstName,
+            last_name: lastName,
+          },
         },
-      },
-    });
+      });
 
-    if (signupError) {
-      setError(signupError.message);
-    } else {
-      alert('لینک تأیید به ایمیل شما ارسال شد!');
-      router.push('/auth/login');
+      if (signupError) {
+        setError(signupError.message);
+        return;
+      }
+
+      if (authData.user) {
+        // به‌روزرسانی اطلاعات کاربر در جدول users
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({
+            phone: phone,
+            first_name: firstName,
+            last_name: lastName,
+          })
+          .eq('id', authData.user.id);
+
+        if (updateError) {
+          setError(updateError.message);
+          return;
+        }
+
+        alert('ثبت‌نام با موفقیت انجام شد!');
+        router.push('/auth/login');
+      }
+    } catch (err) {
+      setError('خطایی در ثبت‌نام رخ داد. لطفاً دوباره تلاش کنید.');
     }
   };
 
@@ -39,21 +65,31 @@ export default function SignupForm() {
       {error && <p className="text-red-500 mb-4">{error}</p>}
       <form onSubmit={handleSignup}>
         <div className="mb-4">
-          <label className="block text-gray-700 mb-2">نام نمایشی</label>
+          <label className="block text-gray-700 mb-2">نام</label>
           <input
             type="text"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
             className="w-full px-4 py-2 border rounded-md"
             required
           />
         </div>
         <div className="mb-4">
-          <label className="block text-gray-700 mb-2">ایمیل</label>
+          <label className="block text-gray-700 mb-2">نام خانوادگی</label>
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="text"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            className="w-full px-4 py-2 border rounded-md"
+            required
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 mb-2">شماره تلفن</label>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
             className="w-full px-4 py-2 border rounded-md"
             required
           />

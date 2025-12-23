@@ -10,10 +10,8 @@ import {
   User as UserIcon, 
   Heart, 
   LogOut, 
-
   Loader2,
-  
-  Mail
+  Phone // آیکون شماره تلفن
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -33,11 +31,31 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [likedProducts, setLikedProducts] = useState<LikedProduct[]>([]);
   const [loadingLikes, setLoadingLikes] = useState(true);
+  const [userProfile, setUserProfile] = useState<{
+  id: string;
+  phone: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  created_at: string;
+} | null>(null); // برای ذخیره اطلاعات کامل کاربر
 
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+      
+      // دریافت اطلاعات کامل کاربر از جدول users
+      if (user) {
+        const { data: profileData } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        setUserProfile(profileData);
+      }
+      
       setLoading(false);
     };
     getUser();
@@ -63,9 +81,7 @@ export default function ProfilePage() {
         if (error) {
           console.error('Error fetching liked products:', error);
         } else if (data) {
-          // --- این خط را اصلاح کردیم ---
           const products = (data.map(item => item.products).filter(Boolean) as unknown) as LikedProduct[];
-          
           setLikedProducts(products);
         }
         setLoadingLikes(false);
@@ -115,14 +131,16 @@ export default function ProfilePage() {
             <div className="bg-white rounded-2xl shadow-xl p-8 sticky top-8">
               <div className="flex flex-col items-center">
                 <div className="w-24 h-24 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-4xl mb-4 shadow-lg">
-                  {user.email?.charAt(0).toUpperCase()}
+                  {userProfile?.first_name?.charAt(0).toUpperCase() || 'U'}
                 </div>
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                  {user.user_metadata?.display_name || 'کاربر'}
+                  {userProfile?.first_name && userProfile?.last_name 
+                    ? `${userProfile.first_name} ${userProfile.last_name}` 
+                    : 'کاربر'}
                 </h2>
                 <p className="text-gray-600 flex items-center mb-6">
-                  <Mail className="w-4 h-4 ml-2" />
-                  {user.email}
+                  <Phone className="w-4 h-4 ml-2" />
+                  {userProfile?.phone || 'شماره تلفن ثبت نشده'}
                 </p>
               </div>
               
@@ -158,7 +176,7 @@ export default function ProfilePage() {
                         <Link href={`/products/${product.id}`}>
                           <div className="relative h-48 overflow-hidden bg-gray-100">
                             <Image
-                              src={product.image_url || 'https://via.placeholder.com/300x200'} // این خط بعد از تغییر next.config.js کار می‌کند
+                              src={product.image_url || 'https://via.placeholder.com/300x200'}
                               alt={product.name}
                               fill
                               className="object-cover group-hover:scale-110 transition-transform duration-500"
