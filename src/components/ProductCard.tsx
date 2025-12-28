@@ -16,6 +16,7 @@ import Toast from './Toast'; // Import کامپوننت Toast سفارشی
 
 
 export default function ProductCard({ product }: { product: Product }) {
+  // مقداردهی اولیه با پراپ، اما بلافاصله توسط useEffect اصلاح می‌شود
   const [likes, setLikes] = useState(product.total_likes);
   const [userLiked, setUserLiked] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -31,7 +32,20 @@ export default function ProductCard({ product }: { product: Product }) {
   const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    const fetchData = async () => {
+      // --- اصلاحیه مشکل 1: دریافت دقیق تعداد لایک از دیتابیس ---
+      // این کار باعث می‌شود حتی اگر والد مقدار اشتباه (مثلاً 0) بفرستد، مقدار صحیح از دیتابیس گرفته شود
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .select('total_likes')
+        .eq('id', product.id)
+        .single();
+
+      if (!productError && productData) {
+        setLikes(productData.total_likes);
+      }
+
+      // دریافت اطلاعات کاربر برای چک کردن وضعیت لایک
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       if (user) {
@@ -39,10 +53,12 @@ export default function ProductCard({ product }: { product: Product }) {
         setUserLiked(!!like);
       }
     };
-    fetchUserData();
+    fetchData();
   }, [product.id]);
 
-  const finalPrice = product.discount_percentage ? product.price * (1 - product.discount_percentage / 100) : product.price;
+  const finalPrice = product.discount_percentage && product.discount_percentage > 0 
+    ? product.price * (1 - product.discount_percentage / 100) 
+    : product.price;
 
   const handleLike = async () => {
     if (!user) {
@@ -81,28 +97,19 @@ export default function ProductCard({ product }: { product: Product }) {
   const handleAddToCart = async () => {
     setIsAddingToCart(true);
     try {
-      // ۱. ابتدا بررسی می‌کنیم که آیا کاربر وارد شده است یا نه
       if (!user) {
-        // اگر کاربر وارد نشده بود، یک نوتیفیکیشن خطا نمایش می‌دهیم
         setToastMessage('برای افزودن به سبد خرید ابتدا وارد شوید');
         setToastType('error');
         setShowToast(true);
-        return; // و از ادامه عملیات جلوگیری می‌کنیم
+        return;
       }
-
-      // ۲. اگر کاربر وارد شده بود، محصول را به سبد خرید اضافه می‌کنیم
       await addToCart(product);
-      // طبق درخواست شما، برای کاربر وارد شده نوتیفیکیشن موفقیت نمایش داده نمی‌شود
-
     } catch (error) {
-      // مدیریت خطاهای احتمالی در هنگام افزودن به سبد
       console.error("Error adding to cart:", error);
-      // در صورت بروز خطا هم یک نوتیفیکیشن نمایش می‌دهیم
       setToastMessage('خطایی در افزودن به سبد خرید رخ داد. لطفاً دوباره تلاش کنید.');
       setToastType('error');
       setShowToast(true);
     } finally {
-      // این بخش همیشه اجرا می‌شود و حالت لودینگ دکمه را برمی‌گرداند
       setIsAddingToCart(false);
     }
   };
@@ -124,7 +131,11 @@ export default function ProductCard({ product }: { product: Product }) {
             <div className="flex h-full w-full items-center justify-center bg-gray-200"><span className="text-gray-500">عکس موجود نیست</span></div>
           )}
           {product.is_bestseller && <span className="absolute left-3 top-3 rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-black shadow-lg">🏆 پرفروش</span>}
-          {product.discount_percentage && <span className="absolute right-3 top-3 rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white shadow-lg">%{product.discount_percentage} تخفیف</span>}
+          
+          {/* --- اصلاحیه مشکل 2: اضافه کردن شرط > 0 برای جلوگیری از نمایش 0 --- */}
+          {product.discount_percentage && product.discount_percentage > 0 && (
+            <span className="absolute right-3 top-3 rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white shadow-lg">%{product.discount_percentage} تخفیف</span>
+          )}
         </div>
         
         <div className="p-6 bg-white">
@@ -146,7 +157,11 @@ export default function ProductCard({ product }: { product: Product }) {
           
           <div className="flex items-center justify-between mb-4">
             <div>
-              {product.discount_percentage && <span className="text-xs text-gray-400 line-through">{formatToToman(product.price)}</span>}
+              {/* --- اصلاحیه مشکل 2: اضافه کردن شرط > 0 اینجا هم --- */}
+              {/* اگر درصد تخفیف وجود داشت و بزرگتر از 0 بود قیمت خط‌خورده را نمایش بده */}
+{(product.discount_percentage ?? 0) > 0 && (
+  <span className="text-xs text-gray-400 line-through">{formatToToman(product.price)}</span>
+)}
               <span className="mr-2 text-lg font-bold text-green-600">{formatToToman(finalPrice)}</span>
             </div>
             <span className={`rounded-full px-2 py-1 text-xs ${product.stock_quantity > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{product.stock_quantity > 0 ? 'موجود' : 'ناموجود'}</span>
