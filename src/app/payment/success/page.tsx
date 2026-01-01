@@ -7,25 +7,22 @@ import { Suspense } from 'react';
 import { CheckCircle, XCircle, AlertCircle, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 
-// کامپوننتی که حاوی منطق اصلی است
+// کامپوننتی که حاوی منطق اصلی و useSearchParams است
 function PaymentResultPageContent() {
   const searchParams = useSearchParams();
   const status = searchParams.get('status');
 
-  // --- شروع تغییرات ---
-  // به جای useState و useEffect، پیام را مستقیماً محاسبه می‌کنیم
+  // پیام را بر اساس وضعیت مستقیماً محاسبه می‌کنیم (بهینه‌تر از useState)
   const getMessage = () => {
-    if (status === 'success') {
-      return 'خرید شما با موفقیت انجام شد. سفارش شما بزودی توسط ادمین بررسی و ارسال خواهد شد.';
-    } else if (status === 'failed') {
-      return 'پرداخت شما ناموفق بود. در صورت کسر مبلغ، ظرف ۷۲ ساعت به حساب شما بازگردانده خواهد شد.';
-    } else {
-      return 'خطایی در فرآیند پرداخت رخ داده است. لطفاً با پشتیبانی تماس بگیرید.';
+    switch (status) {
+      case 'success':
+        return 'خرید شما با موفقیت انجام شد. سفارش شما بزودی توسط ادمین بررسی و ارسال خواهد شد.';
+      case 'failed':
+        return 'پرداخت شما ناموفق بود. در صورت کسر مبلغ، ظرف ۷۲ ساعت به حساب شما بازگردانده خواهد شد.';
+      default:
+        return 'خطایی در فرآیند پرداخت رخ داده است. لطفاً با پشتیبانی تماس بگیرید.';
     }
   };
-
-  const message = getMessage();
-  // --- پایان تغییرات ---
 
   const getIcon = () => {
     switch (status) {
@@ -56,7 +53,7 @@ function PaymentResultPageContent() {
           {getIcon()}
         </div>
         <h1 className="text-2xl font-bold mb-4">{getTitle()}</h1>
-        <p className="text-gray-600 mb-6">{message}</p>
+        <p className="text-gray-600 mb-6">{getMessage()}</p>
         <Link
           href="/"
           className="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
