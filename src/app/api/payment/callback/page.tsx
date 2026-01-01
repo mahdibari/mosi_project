@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react'; // Suspense را ایمپورت کنید
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useCart } from '@/contexts/CartContext'; // برای خالی کردن سبد
+import { useCart } from '@/contexts/CartContext';
 
-export default function PaymentCallbackPage() {
+// کامپوننتی که منطق اصلی و استفاده از useSearchParams در آن قرار دارد
+function PaymentCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { clearCart } = useCart();
@@ -91,5 +92,18 @@ export default function PaymentCallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// کامپوننت اصلی صفحه که Suspense را پیاده می‌کند
+export default function PaymentCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    }>
+      <PaymentCallbackContent />
+    </Suspense>
   );
 }
