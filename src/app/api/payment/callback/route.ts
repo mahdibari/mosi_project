@@ -1,7 +1,8 @@
 // app/api/payment/callback/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server'; // مطمئن شوید مسیر کلاینت Supabase شما صحیح است
+// --- این خط را اصلاح کنید ---
+import { supabaseServerClient } from '@/lib/supabase/server'; 
 
 // این تابع درخواست‌های GET به آدرس /api/payment/callback را مدیریت می‌کند
 export async function GET(request: NextRequest) {
@@ -27,7 +28,8 @@ export async function GET(request: NextRequest) {
   if (verificationResult.success) {
     console.log('Payment Verification: SUCCESS');
     // --- مرحله ۲: آپدیت وضعیت سفارش در دیتابیس ---
-    const supabase = createClient();
+    // --- اینجا هم از supabaseServerClient استفاده می‌کنیم ---
+    const supabase = supabaseServerClient();
     
     // فرض می‌کنیم جدول orders شما ستونی به نام authority دارد
     const { error } = await supabase
