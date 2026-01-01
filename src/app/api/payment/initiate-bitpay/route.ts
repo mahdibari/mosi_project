@@ -3,37 +3,29 @@ import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const { amount, factorId, redirectUrl, description } = await request.json();
+    const { amount, factorId, redirectUrl } = await request.json();
 
-    // لاگ برای دیباگ: مقادیر دریافتی از صفحه checkout
-    console.log('Initiate API: Received params from checkout:', { amount, factorId, redirectUrl, description });
+    console.log('Initiate API: Received params:', { amount, factorId, redirectUrl });
 
     if (!amount || !factorId || !redirectUrl) {
-      console.error('Initiate API Error: Missing amount, factorId, or redirectUrl in request body.');
-      return NextResponse.json({ message: 'Amount, factorId, and redirectUrl are required.' }, { status: 400 });
+      return NextResponse.json({ message: 'Missing required fields.' }, { status: 400 });
     }
 
-    const BITPAY_API_KEY = process.env.BITPAY_API_KEY!;
+    const BITPAY_API_KEY = process.env.BITPAY_API_KEY;
     if (!BITPAY_API_KEY) {
-      console.error('Initiate API Error: BITPAY_API_KEY is not defined.');
-      return NextResponse.json({ message: 'BitPay API Key is not configured on the server.' }, { status: 500 });
+      return NextResponse.json({ message: 'Server configuration error: API Key missing.' }, { status: 500 });
     }
 
+    // آدرس ارسال به بیت‌پی
     const bitpaySendUrl = 'https://bitpay.ir/payment/gateway-send';
-
-    const encodedRedirectUrl = encodeURIComponent(redirectUrl);
 
     const formData = new URLSearchParams();
     formData.append('api', BITPAY_API_KEY);
-    formData.append('amount', (amount * 10).toString()); // تبدیل مبلغ از تومان به ریال
-    formData.append('redirect', encodedRedirectUrl);
+    // تبدیل تومان به ریال (چون معمولا دیتابیس تومان است و درگاه ریال میخواهد)
+    formData.append('amount', (amount * 10).toString()); 
+    formData.append('redirect', redirectUrl);
     formData.append('factorId', factorId.toString());
-    if (description) {
-      formData.append('description', description);
-    }
-
-    // لاگ برای دیباگ: اطلاعات ارسالی به BitPay
-    console.log('Initiate API: Sending to BitPay:', formData.toString());
+    // می‌توانید نام و ایمیل کاربر را هم اینجا اضافه کنید طبق مستندات
 
     const response = await fetch(bitpaySendUrl, {
       method: 'POST',
@@ -44,30 +36,29 @@ export async function POST(request: Request) {
     });
 
     const responseText = await response.text();
-    // لاگ برای دیباگ: پاسخ خام از BitPay
-    console.log('Initiate API: Raw response from BitPay:', responseText);
+    console.log('Initiate API: Raw BitPay response:', responseText);
 
     const idGet = parseInt(responseText, 10);
 
+    // بررسی خطاهای بیت‌پی
     if (isNaN(idGet) || idGet <= 0) {
-      let errorMessage = 'خطا در دریافت شناسه پرداخت از BitPay.';
-      if (idGet === -1) errorMessage = 'API کلید نامعتبر است.';
-      if (idGet === -2) errorMessage = 'مبلغ نامعتبر است (کمتر از 1000 ریال).';
-      if (idGet === -3) errorMessage = 'آدرس بازگشت (redirect) نامعتبر است.';
-      if (idGet === -4) errorMessage = 'درگاه با اطلاعات ارسالی شما وجود ندارد یا در حالت انتظار است.';
-      if (idGet === -10) errorMessage = 'خطا در اتصال به درگاه. لطفاً مجدداً تلاش کنید.';
-
-      console.error('Initiate API Error: BitPay initiation failed. Response:', responseText);
+      let errorMessage = 'خطا در برقراری ارتباط با درگاه پرداخت.';
+      if (idGet === -1) errorMessage = 'API Key نامعتبر است.';
+      if (idGet === -2) errorMessage = 'مبلغ نامعتبر است.';
+      if (idGet === -3) errorMessage = 'آدرس بازگشت (Redirect) نامعتبر است.';
+      if (idGet === -4) errorMessage = 'درگاه یافت نشد یا در حال انتظار است.';
+      
+      console.error('Initiate API Error:', errorMessage);
       return NextResponse.json({ message: errorMessage, bitpayResponse: responseText }, { status: 500 });
     }
 
+    // ساخت لینک پرداخت
     const bitpayRedirectUrl = `https://bitpay.ir/payment/gateway-${idGet}-get`;
-    console.log('Initiate API: Redirect URL generated:', bitpayRedirectUrl);
-
+    
     return NextResponse.json({ success: true, bitpayRedirectUrl });
 
   } catch (error: any) {
-    console.error('Initiate API Error: Exception during payment initiation process:', error);
-    return NextResponse.json({ message: 'Internal server error.', error: error.message }, { status: 500 });
+    console.error('Initiate API Exception:', error);
+    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
   }
 }
