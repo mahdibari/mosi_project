@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase'; // مطمئن شوید این کلاینت درست است
 import { MapPin, Phone, User, CreditCard, ChevronDown, Truck, RefreshCcw, HelpCircle } from 'lucide-react';
 import { formatToToman } from '@/utils/formatPrice';
 import Image from 'next/image';
@@ -20,10 +20,9 @@ export default function CheckoutPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [activeInfoBox, setActiveInfoBox] = useState<number | null>(0); 
+  const [activeInfoBox, setActiveInfoBox] = useState<number | null>(0);
 
   const infoBoxes = [
-    // ... (کدهای قبلی اطلاعات باکس‌ها بدون تغییر)
     {
       icon: <HelpCircle className="w-5 h-5" />,
       title: 'نحوه ثبت سفارش',
@@ -75,7 +74,7 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      // 1. دریافت کاربر
+      // 1. دریافت کاربر لاگین کرده
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('کاربر یافت نشد. لطفا وارد شوید.');
 
@@ -95,7 +94,7 @@ export default function CheckoutPage() {
           user_id: user.id,
           address_id: newAddress.id,
           total_amount: cartTotal,
-          status: 'pending', // وضعیت اولیه
+          status: 'pending',
         }])
         .select()
         .single();
@@ -118,18 +117,26 @@ export default function CheckoutPage() {
 
       if (itemsError) throw itemsError;
 
-      // 5. تماس با API شروع پرداخت (Initiate)
-      // 注意: این آدرس باید دقیقا آدرس صفحه‌ای باشد که ما در مرحله بعد می‌سازیم
-      const callbackUrl = `${window.location.origin}/payment/callback`;
+      // 5. آماده کردن اطلاعات برای ارسال به درگاه
+      const callbackUrl = `${window.location.origin}/api/payment/callback`;
+      const firstProductName = cartItems[0]?.product.name || 'محصولات منتخب';
+      
+      // اطلاعات کاربر از فرم و اطلاعات لاگین شده
+      const paymentData = {
+        amount: cartTotal,
+        name: formData.full_name, // نام از فرم تکمیل اطلاعات
+        email: user.email || '', // ایمیل از کاربر لاگین کرده
+        phone: formData.phone, // شماره تماس از فرم
+        description: `خرید: ${firstProductName}`,
+        factorId: newOrder.id, // شناسه سفارش برای ذخیره trans_id
+        redirectUrl: callbackUrl,
+      };
 
+      // 6. تماس با API شروع پرداخت
       const bitpayResponse = await fetch('/api/payment/initiate-bitpay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: cartTotal,
-          factorId: newOrder.id, // شناسه سفارش را به عنوان فاکتور می‌فرستیم
-          redirectUrl: callbackUrl,
-        }),
+        body: JSON.stringify(paymentData),
       });
 
       const bitpayData = await bitpayResponse.json();
@@ -138,13 +145,11 @@ export default function CheckoutPage() {
         throw new Error(bitpayData.message || 'خطا در اتصال به درگاه پرداخت');
       }
 
-      // 6. هدایت کاربر به درگاه پرداخت
-      // نکته: سبد خرید را اینجا پاک نمی‌کنیم، بعد از بازگشت موفقیت‌آمیز پاک می‌کنیم
+      // 7. هدایت کاربر به درگاه پرداخت
       window.location.href = bitpayData.bitpayRedirectUrl;
 
-    } catch (error: any) {
-      console.error('Checkout Error:', error);
-      alert(error.message || 'خطایی رخ داد. لطفا مجددا تلاش کنید.');
+    
+    
     } finally {
       setIsSubmitting(false);
     }
@@ -154,16 +159,13 @@ export default function CheckoutPage() {
 
   return (
     <main className="container mx-auto px-4 py-8 min-h-[60vh]">
-      {/* هدر و لی‌اوت را بدون تغییر نگه دارید، فقط بخش فرم را نشان می‌دهم */}
       <header className="mb-8">
         <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">تکمیل اطلاعات سفارش</h1>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* ستون راهنما */}
         <aside className="lg:col-span-1">
            <div className="sticky top-24 space-y-4">
-              {/* کد مربوط به infoBoxes دقیقا همانطور که بود اینجا قرار می‌گیرد */}
                {infoBoxes.map((box, index) => (
                 <div key={index} className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
                   <button onClick={() => setActiveInfoBox(activeInfoBox === index ? null : index)} className="w-full flex items-center justify-between p-4 text-right hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
@@ -176,10 +178,8 @@ export default function CheckoutPage() {
            </div>
         </aside>
 
-        {/* فرم اصلی */}
         <section className="lg:col-span-2">
           <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 space-y-6">
-             {/* فیلدهای فرم (Name, Phone, Address, Postal Code) همانطور که بود */}
              <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">نام و نام خانوادگی</label>
               <input type="text" name="full_name" value={formData.full_name} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
@@ -205,9 +205,7 @@ export default function CheckoutPage() {
           </form>
         </section>
 
-        {/* خلاصه سفارش */}
         <aside className="lg:col-span-1">
-          {/* کد مربوط به خلاصه سفارش (Cart Summary) دقیقا همانطور که بود */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden sticky top-24">
             <div className="p-6 bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
               <h2 className="text-xl font-semibold">خلاصه سفارش</h2>

@@ -1,64 +1,61 @@
 // app/api/payment/initiate-bitpay/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { supabaseServerClient } from '@/lib/supabase/server'; // از کلاینت سرور استفاده کنید
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    const { amount, factorId, redirectUrl } = await request.json();
+    const supabase = supabaseServerClient();
+    const body = await request.json();
 
-    console.log('Initiate API: Received params:', { amount, factorId, redirectUrl });
+    const { amount, name, email, phone, description, factorId, redirectUrl } = body;
 
-    if (!amount || !factorId || !redirectUrl) {
-      return NextResponse.json({ message: 'Missing required fields.' }, { status: 400 });
+    if (!amount || !name || !phone || !factorId || !redirectUrl) {
+      return NextResponse.json({ success: false, message: 'پارامترهای ضروری ارسال نشده‌اند.' }, { status: 400 });
     }
 
-    const BITPAY_API_KEY = process.env.BITPAY_API_KEY;
-    if (!BITPAY_API_KEY) {
-      return NextResponse.json({ message: 'Server configuration error: API Key missing.' }, { status: 500 });
-    }
+    const API_KEY = 'YOUR-BITPAY-API-KEY'; // <<<< کلید API خود را اینجا قرار دهید
 
-    // آدرس ارسال به بیت‌پی
-    const bitpaySendUrl = 'https://bitpay.ir/payment/gateway-send';
+    // آماده کردن پارامترها برای Bitpay
+    const params = new URLSearchParams();
+    params.append('api', API_KEY);
+    params.append('amount', amount.toString());
+    params.append('redirect', redirectUrl);
+    params.append('name', name);
+    params.append('email', email);
+    params.append('phone', phone);
+    params.append('description', description);
 
-    const formData = new URLSearchParams();
-    formData.append('api', BITPAY_API_KEY);
-    // تبدیل تومان به ریال (چون معمولا دیتابیس تومان است و درگاه ریال میخواهد)
-    formData.append('amount', (amount * 10).toString()); 
-    formData.append('redirect', redirectUrl);
-    formData.append('factorId', factorId.toString());
-    // می‌توانید نام و ایمیل کاربر را هم اینجا اضافه کنید طبق مستندات
-
-    const response = await fetch(bitpaySendUrl, {
+    // ارسال درخواست به Bitpay
+    const response = await fetch('https://bitpay.ir/payment/gateway-send', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: formData.toString(),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
     });
 
     const responseText = await response.text();
-    console.log('Initiate API: Raw BitPay response:', responseText);
 
-    const idGet = parseInt(responseText, 10);
+    if (responseText.startsWith('-1')) {
+      const gatewayUrl = responseText.substring(3);
+      const trans_id = gatewayUrl.split('trans_id=')[1];
 
-    // بررسی خطاهای بیت‌پی
-    if (isNaN(idGet) || idGet <= 0) {
-      let errorMessage = 'خطا در برقراری ارتباط با درگاه پرداخت.';
-      if (idGet === -1) errorMessage = 'API Key نامعتبر است.';
-      if (idGet === -2) errorMessage = 'مبلغ نامعتبر است.';
-      if (idGet === -3) errorMessage = 'آدرس بازگشت (Redirect) نامعتبر است.';
-      if (idGet === -4) errorMessage = 'درگاه یافت نشد یا در حال انتظار است.';
-      
-      console.error('Initiate API Error:', errorMessage);
-      return NextResponse.json({ message: errorMessage, bitpayResponse: responseText }, { status: 500 });
+      // ذخیره trans_id در دیتابیس برای استفاده در callback
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ authority: trans_id }) // فرض می‌کنیم ستونی به نام authority دارید
+        .eq('id', factorId);
+
+      if (updateError) {
+        console.error('Error saving trans_id:', updateError);
+        // حتی اگر ذخیره نشد، ادامه بده چون پرداخت شده
+      }
+
+      return NextResponse.json({ success: true, bitpayRedirectUrl: gatewayUrl });
+    } else {
+      return NextResponse.json({ success: false, message: `خطا از درگاه: ${responseText}` }, { status: 400 });
     }
 
-    // ساخت لینک پرداخت
-    const bitpayRedirectUrl = `https://bitpay.ir/payment/gateway-${idGet}-get`;
-    
-    return NextResponse.json({ success: true, bitpayRedirectUrl });
-
   } catch (error: any) {
-    console.error('Initiate API Exception:', error);
-    return NextResponse.json({ message: 'Internal Server Error', error: error.message }, { status: 500 });
+    console.error('Error in initiate-bitpay:', error);
+    return NextResponse.json({ success: false, message: 'خطای سرور داخلی' }, { status: 500 });
   }
 }
