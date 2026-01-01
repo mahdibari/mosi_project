@@ -1,25 +1,31 @@
 // app/payment/success/page.tsx
+
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { CheckCircle, XCircle, AlertCircle, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 
-export default function PaymentResultPage() {
+// کامپوننتی که حاوی منطق اصلی است
+function PaymentResultPageContent() {
   const searchParams = useSearchParams();
   const status = searchParams.get('status');
-  const [message, setMessage] = useState('');
 
-  useEffect(() => {
+  // --- شروع تغییرات ---
+  // به جای useState و useEffect، پیام را مستقیماً محاسبه می‌کنیم
+  const getMessage = () => {
     if (status === 'success') {
-      setMessage('خرید شما با موفقیت انجام شد. سفارش شما بزودی توسط ادمین بررسی و ارسال خواهد شد.');
+      return 'خرید شما با موفقیت انجام شد. سفارش شما بزودی توسط ادمین بررسی و ارسال خواهد شد.';
     } else if (status === 'failed') {
-      setMessage('پرداخت شما ناموفق بود. در صورت کسر مبلغ، ظرف ۷۲ ساعت به حساب شما بازگردانده خواهد شد.');
+      return 'پرداخت شما ناموفق بود. در صورت کسر مبلغ، ظرف ۷۲ ساعت به حساب شما بازگردانده خواهد شد.';
     } else {
-      setMessage('خطایی در فرآیند پرداخت رخ داده است. لطفاً با پشتیبانی تماس بگیرید.');
+      return 'خطایی در فرآیند پرداخت رخ داده است. لطفاً با پشتیبانی تماس بگیرید.';
     }
-  }, [status]);
+  };
+
+  const message = getMessage();
+  // --- پایان تغییرات ---
 
   const getIcon = () => {
     switch (status) {
@@ -60,5 +66,23 @@ export default function PaymentResultPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+// کامپوننت اصلی صفحه که کامپوننت بالا را در Suspense پیچیده می‌دهد
+export default function PaymentResultPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <p className="mt-2 text-gray-500">در حال بارگذاری...</p>
+          </div>
+        </div>
+      }
+    >
+      <PaymentResultPageContent />
+    </Suspense>
   );
 }
