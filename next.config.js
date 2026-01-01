@@ -7,6 +7,17 @@ const nextConfig = {
       'images.unsplash.com'
     ],
   },
+  remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'gbdyflffztuujzzabobv.supabase.co' ,// آدرس دامنه سوپابیس خود را اینجا قرار دهید
+        port: '',
+        pathname: '/storage/v1/object/**',
+      },
+      // اگر عکس‌ها از جای دیگر هم می‌آیند اینجا اضافه کنید
+    ],
 };
 
 module.exports = nextConfig;
+
+
