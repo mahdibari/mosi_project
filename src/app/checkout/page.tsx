@@ -8,6 +8,7 @@ import { MapPin, Phone, User, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckC
 import { formatToToman } from '@/utils/formatPrice';
 import Image from 'next/image';
 
+
 function CheckoutContent() {
   const { cartItems, cartTotal, clearCart, isLoading } = useCart();
   const router = useRouter();
@@ -66,7 +67,8 @@ function CheckoutContent() {
     router.push('/cart');
     return null;
   }
-
+const SHIPPING_FEE = 250000;
+const finalAmount = cartTotal + SHIPPING_FEE;
   // --- نمایش وضعیت موفقیت آمیز ---
   if (isSuccess) {
     return (
@@ -280,7 +282,7 @@ function CheckoutContent() {
         <section className="lg:col-span-2">
           <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 space-y-6">
              <div>
-              <label className="block text-sm font-medium text-gray-700 dark:bg-gray-300 mb-2">نام و نام خانوادگی</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">نام و نام خانوادگی</label>
               <input type="text" name="full_name" value={formData.full_name} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
             </div>
             <div>
@@ -326,7 +328,7 @@ function CheckoutContent() {
             <div className="p-6 border-t border-gray-200 dark:border-gray-700">
                 <div className="flex justify-between text-xl font-bold text-gray-800 dark:text-gray-100">
                     <span>مبلغ نهایی:</span>
-                    <span>{formatToToman(cartTotal)}</span>
+                    <span>{formatToToman(finalAmount)}</span>
                 </div>
             </div>
           </div>
