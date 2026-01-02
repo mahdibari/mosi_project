@@ -1,62 +1,59 @@
 import { NextResponse } from 'next/server';
-import { supabaseServerClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const trans_id = searchParams.get('trans_id');
   const id_get = searchParams.get('id_get');
 
-  // ۱. بررسی وجود پارامترهای بازگشتی از درگاه
   if (!trans_id || !id_get) {
     return NextResponse.redirect(new URL('/checkout?status=failed', request.url));
   }
 
   try {
+    // استفاده از Service Role برای دور زدن RLS و مشکل "کاربر یافت نشد"
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY! 
+    );
+
     const BITPAY_API_KEY = process.env.BITPAY_API_KEY;
     
-    // ۲. استعلام مستقیم از درگاه بیت‌پی (حذف واسطه verify-bitpay)
-    const verifyUrl = 'https://bitpay.ir/payment/gateway-result-second';
-    const formData = new URLSearchParams();
-    formData.append('api', BITPAY_API_KEY || '');
-    formData.append('id_get', id_get);
-    formData.append('trans_id', trans_id);
-
-    const response = await fetch(verifyUrl, {
+    // تاییدیه از درگاه بیت‌پی
+    const verifyResponse = await fetch('https://bitpay.ir/payment/gateway-result-second', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formData.toString(),
+      body: new URLSearchParams({ api: BITPAY_API_KEY!, id_get, trans_id }).toString(),
     });
 
-    const result = await response.json();
+    const result = await verifyResponse.json();
+    
+    // در اسکیما شما ID از نوع UUID است
+    const orderId = result.factorId || result.order_id;
 
-    // ۳. اگر وضعیت ۱ باشد یعنی پرداخت در درگاه موفق بوده است
-    if (Number(result.status) === 1) {
-      const orderId = result.factorId || result.order_id;
-      const supabase = supabaseServerClient();
-
-      // ۴. آپدیت دیتابیس با مقادیر انگلیسی طبق خواسته شما
-      const { error: updateError } = await supabase
+    if (Number(result.status) === 1 && orderId) {
+      // آپدیت دیتابیس - وضعیت‌ها به انگلیسی ذخیره می‌شوند
+      const { error } = await supabaseAdmin
         .from('orders')
         .update({ 
-          status: 'paid',               // وضعیت کلی سفارش به انگلیسی [cite: 71]
-          payment_status: 'success',    // وضعیت پرداخت به انگلیسی [cite: 71]
-          trans_id: trans_id.toString() 
+          status: 'paid',               // موفق به انگلیسی
+          payment_status: 'success',    // موفق به انگلیسی
+          trans_id: trans_id 
         })
-        .eq('id', orderId);
+        .eq('id', orderId); // مقایسه UUID با آیدی برگشتی
 
-      if (updateError) {
-        console.error('Database Update Error:', updateError);
-        // حتی اگر دیتابیس آپدیت نشد، چون پول پرداخت شده کاربر را به صفحه موفقیت می‌بریم
+      if (error) {
+        console.error("Database Error:", error.message);
+        // اگر باز هم آپدیت نشد، احتمالا بخاطر UUID است
+        return NextResponse.redirect(new URL(`/checkout?status=failed&db_error=${error.message}`, request.url));
       }
 
       return NextResponse.redirect(new URL('/checkout?status=success', request.url));
-    } else {
-      // پرداخت در درگاه ناموفق بوده است
-      return NextResponse.redirect(new URL('/checkout?status=failed', request.url));
     }
 
+    return NextResponse.redirect(new URL('/checkout?status=failed', request.url));
+
   } catch (error) {
-    console.error('Callback Critical Error:', error);
     return NextResponse.redirect(new URL('/checkout?status=failed', request.url));
   }
 }
