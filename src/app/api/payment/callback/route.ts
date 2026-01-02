@@ -5,19 +5,21 @@ export async function GET(request: Request) {
   const trans_id = searchParams.get('trans_id');
   const id_get = searchParams.get('id_get');
 
-  // اگر پارامترها نبود
+  // اگر پارامترها نبود، کاربر را به صفحه خطا بفرست
   if (!trans_id || !id_get) {
-    return NextResponse.redirect(new URL('/?error=missing_params', request.url));
+    // هدایت به صفحه اصلی با پارامتر خطا (یا یک صفحه خطای سفارشی)
+    return NextResponse.redirect(new URL('/?error=missing_payment_params', request.url));
   }
 
   try {
-    // ساختن آدرس دقیق API تایید داخل سرور
-    // استفاده از header برای ساخت آدرس دقیق (http یا https)
+    // فراخوانی فایل verify-bitpay در داخل سرور برای تایید نهایی تراکنش
+    // باید آدرس کامل سایت خود را داشته باشید. 
+    // اگر در لوکال هستید http://localhost:3000 و اگر روی هاست است دامنه سایت.
+    // روش بهتر: استفاده از هدر درخواست فعلی برای ساخت آدرس
+    const baseUrl = request.headers.get('host') || '';
     const protocol = request.headers.get('x-forwarded-proto') || 'http';
-    const host = request.headers.get('host');
-    const verifyUrl = `${protocol}://${host}/api/payment/verify-bitpay`;
+    const verifyUrl = `${protocol}://${baseUrl}/api/payment/verify-bitpay`;
 
-    // ارسال درخواست داخلی به تابع verify
     const verifyResponse = await fetch(verifyUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -26,19 +28,18 @@ export async function GET(request: Request) {
 
     const verifyData = await verifyResponse.json();
 
-    // بررسی نتیجه تایید
     if (verifyData.success) {
-      // هدایت به صفحه موفقیت
+      // اگر پرداخت موفق بود، کاربر را به صفحه "موفقیت" هدایت کن
+      // می‌توانید orderId را هم به صفحه بفرستید
       return NextResponse.redirect(new URL('/checkout?status=success', request.url));
     } else {
-      // هدایت به صفحه شکست (به همراه دلیل خطا برای دیباگ)
-      const errorMessage = encodeURIComponent(verifyData.message || 'Unknown error');
-      console.error('Callback redirecting to failed:', verifyData);
-      return NextResponse.redirect(new URL(`/checkout?status=failed&reason=${errorMessage}`, request.url));
+      // اگر پرداخت ناموفق بود (یا تقلبی بوده)
+      console.error('Payment verification failed:', verifyData.message);
+      return NextResponse.redirect(new URL('/checkout?status=failed', request.url));
     }
 
   } catch (error) {
-    console.error('Callback Exception:', error);
+    console.error('Callback Error:', error);
     return NextResponse.redirect(new URL('/checkout?status=error', request.url));
   }
 }

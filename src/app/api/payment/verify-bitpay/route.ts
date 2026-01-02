@@ -13,15 +13,12 @@ export async function POST(request: Request) {
     const BITPAY_API_KEY = process.env.BITPAY_API_KEY;
     if (!BITPAY_API_KEY) return NextResponse.json({ message: 'API Key missing' }, { status: 500 });
 
-    // آدرس تایید تراکنش بیت‌پی
     const verifyUrl = 'https://bitpay.ir/payment/gateway-result-second';
-    
     const formData = new URLSearchParams();
     formData.append('api', BITPAY_API_KEY);
     formData.append('id_get', id_get);
     formData.append('trans_id', trans_id);
 
-    // ارسال درخواست به بیت‌پی
     const response = await fetch(verifyUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -31,9 +28,7 @@ export async function POST(request: Request) {
     const result = await response.json();
     console.log('Verify API Result:', result);
 
-    // بررسی وضعیت موفقیت از طرف بیت‌پی
     if (result.status === 1) {
-      // دریافت آیدی سفارش (بیت‌پی گاهی order_id میفرستد گاهی factorId)
       const orderId = result.order_id || result.factorId;
 
       if (orderId) {
@@ -43,31 +38,28 @@ export async function POST(request: Request) {
         const { error: updateError } = await supabase
           .from('orders')
           .update({ 
-            status: 'successful',        // تغییر وضعیت به موفقیت آمیز
-            trans_id: trans_id.toString() // ذخیره کد رهگیری
+            status: 'paid',                  // وضعیت کلی سفارش (پرداخت شده)
+            payment_status: 'success',     // وضعیت جزئی پرداخت (موفقیت‌آمیز)
+            trans_id: trans_id.toString()    // ذخیره کد پیگیری
           })
           .eq('id', orderId);
         // -------------------------------
 
         if (updateError) {
-          console.error('Supabase Update Error:', updateError);
-          // اگر آپدیت دیتابیس خطا داد، کل فرآیند را ناموفق حساب میکنیم تا پول برگردد یا کاربر متوجه شود
-          return NextResponse.json({ success: false, message: 'Database update failed', error: updateError.message }, { status: 500 });
+          console.error('Error updating order:', updateError);
+          return NextResponse.json({ success: false, message: 'Database update failed' }, { status: 500 });
         }
 
-        // اگر همه چیز اوکی بود
         return NextResponse.json({ success: true, orderId });
       } else {
-        return NextResponse.json({ success: false, message: 'Order ID not found in response.' }, { status: 400 });
+        return NextResponse.json({ success: false, message: 'Order ID not found in response.' });
       }
     } else {
-      // اگر بیت‌پی خودش استاتوس ۱ نداد یعنی پرداخت واقعا ناموفق بوده
-      console.error('BitPay Verification Failed:', result);
       return NextResponse.json({ success: false, message: 'Payment verification failed.', result });
     }
 
   } catch (error: any) {
-    console.error('Verify API Internal Error:', error);
-    return NextResponse.json({ success: false, message: 'Internal Server Error', error: error.message }, { status: 500 });
+    console.error('Verify API Error:', error);
+    return NextResponse.json({ success: false, message: 'Internal Server Error' }, { status: 500 });
   }
 }
