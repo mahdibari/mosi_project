@@ -1,27 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react'; // useEffect اضافه شد
+import { useState, useEffect, Suspense } from 'react';
 import { useCart } from '@/contexts/CartContext';
-import { useRouter, useSearchParams } from 'next/navigation'; // useSearchParams اضافه شد
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { MapPin, Phone, User, CreditCard, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckCircle } from 'lucide-react'; // آیکون CheckCircle اضافه شد
+import { MapPin, Phone, User, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckCircle } from 'lucide-react';
 import { formatToToman } from '@/utils/formatPrice';
 import Image from 'next/image';
 
-export default function CheckoutPage() {
+// کامپوننت جداگانه برای محتوای اصلی که از useSearchParams استفاده می‌کند
+function CheckoutContent() {
   const { cartItems, cartTotal, clearCart, isLoading } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  // بررسی اینکه آیا کاربر از درگاه با موفقیت برگشته است؟
   const isSuccess = searchParams.get('status') === 'success';
 
-  // وقتی صفحه لود شد و وضعیت موفقیت آمیز بود، سبد خرید را خالی کن
+  // خالی کردن سبد خرید بعد از بازگشت موفق
   useEffect(() => {
     if (isSuccess) {
       clearCart();
-      // اختیاری: تمیز کردن URL از پارامترها
-      router.replace('/checkout');
     }
   }, [isSuccess]);
 
@@ -39,7 +37,7 @@ export default function CheckoutPage() {
     {
       icon: <HelpCircle className="w-5 h-5" />,
       title: 'نحوه ثبت سفارش',
-      content: 'پس از تکمیل اطلاعات، روی دکمه ثبت سفارش کلیک کنید. شما به درگاه پرداخت منتقل می‌شوید.',
+      content: 'پس از تکمیل اطلاعات، روی دکمه ثبت سفارش کلیک کنید.',
     },
     {
       icon: <Truck className="w-5 h-5" />,
@@ -53,13 +51,13 @@ export default function CheckoutPage() {
     },
   ];
 
-  // تغییر در شرط خالی بودن سبد: اگر کاربر از پرداخت موفق برنگشته باشد و سبد خالی باشد، برود به سبد خرید
+  // اگر کاربر از درگاه برنگشته و سبد خالی است -> برود به سبد خرید
   if (!isLoading && cartItems.length === 0 && !isSuccess) {
     router.push('/cart');
     return null;
   }
 
-  // ------------------ نمایش پیام موفقیت ------------------
+  // --- نمایش پیام موفقیت ---
   if (isSuccess) {
     return (
       <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center">
@@ -67,18 +65,13 @@ export default function CheckoutPage() {
           <div className="w-20 h-20 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
           </div>
-          
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">
-            خریدتون موفقیت آمیز بود
-          </h1>
-          
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">خریدتون موفقیت آمیز بود</h1>
           <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed mb-8">
             بزودی توسط ادمین های ما بررسی میگردد و مرسوله شما ارسال میشود.
           </p>
-
           <button 
             onClick={() => router.push('/')}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-200 dark:shadow-none"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors"
           >
             بازگشت به فروشگاه
           </button>
@@ -86,7 +79,7 @@ export default function CheckoutPage() {
       </main>
     );
   }
-  // -------------------------------------------------------
+  // -------------------------
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -181,6 +174,7 @@ export default function CheckoutPage() {
         throw new Error(bitpayData.message || 'خطا در اتصال به درگاه پرداخت');
       }
 
+      // انتقال به درگاه
       window.location.href = bitpayData.bitpayRedirectUrl;
     
     } catch (error: any) {
@@ -270,5 +264,14 @@ export default function CheckoutPage() {
         </aside>
       </div>
     </main>
+  );
+}
+
+// کامپوننت اصلی که در Suspense پیچیده شده است
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto px-4 py-20 text-center">در حال بارگذاری صفحه پرداخت...</div>}>
+      <CheckoutContent />
+    </Suspense>
   );
 }
