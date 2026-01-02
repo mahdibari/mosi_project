@@ -1,45 +1,62 @@
 import { NextResponse } from 'next/server';
+import { supabaseServerClient } from '@/lib/supabase/server';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const trans_id = searchParams.get('trans_id');
   const id_get = searchParams.get('id_get');
 
-  // اگر پارامترها نبود، کاربر را به صفحه خطا بفرست
+  // ۱. بررسی وجود پارامترهای بازگشتی از درگاه
   if (!trans_id || !id_get) {
-    // هدایت به صفحه اصلی با پارامتر خطا (یا یک صفحه خطای سفارشی)
-    return NextResponse.redirect(new URL('/?error=missing_payment_params', request.url));
+    return NextResponse.redirect(new URL('/checkout?status=failed', request.url));
   }
 
   try {
-    // فراخوانی فایل verify-bitpay در داخل سرور برای تایید نهایی تراکنش
-    // باید آدرس کامل سایت خود را داشته باشید. 
-    // اگر در لوکال هستید http://localhost:3000 و اگر روی هاست است دامنه سایت.
-    // روش بهتر: استفاده از هدر درخواست فعلی برای ساخت آدرس
-    const baseUrl = request.headers.get('host') || '';
-    const protocol = request.headers.get('x-forwarded-proto') || 'http';
-    const verifyUrl = `${protocol}://${baseUrl}/api/payment/verify-bitpay`;
+    const BITPAY_API_KEY = process.env.BITPAY_API_KEY;
+    
+    // ۲. استعلام مستقیم از درگاه بیت‌پی (حذف واسطه verify-bitpay)
+    const verifyUrl = 'https://bitpay.ir/payment/gateway-result-second';
+    const formData = new URLSearchParams();
+    formData.append('api', BITPAY_API_KEY || '');
+    formData.append('id_get', id_get);
+    formData.append('trans_id', trans_id);
 
-    const verifyResponse = await fetch(verifyUrl, {
+    const response = await fetch(verifyUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trans_id, id_get }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString(),
     });
 
-    const verifyData = await verifyResponse.json();
+    const result = await response.json();
 
-    if (verifyData.success) {
-      // اگر پرداخت موفق بود، کاربر را به صفحه "موفقیت" هدایت کن
-      // می‌توانید orderId را هم به صفحه بفرستید
+    // ۳. اگر وضعیت ۱ باشد یعنی پرداخت در درگاه موفق بوده است
+    if (Number(result.status) === 1) {
+      const orderId = result.factorId || result.order_id;
+      const supabase = supabaseServerClient();
+
+      // ۴. آپدیت دیتابیس با مقادیر انگلیسی طبق خواسته شما
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'paid',               // وضعیت کلی سفارش به انگلیسی [cite: 71]
+          payment_status: 'success',    // وضعیت پرداخت به انگلیسی [cite: 71]
+          trans_id: trans_id.toString() 
+        })
+        .eq('id', orderId);
+
+      if (updateError) {
+        console.error('Database Update Error:', updateError);
+        // حتی اگر دیتابیس آپدیت نشد، چون پول پرداخت شده کاربر را به صفحه موفقیت می‌بریم
+      }
+
       return NextResponse.redirect(new URL('/checkout?status=success', request.url));
     } else {
-      // اگر پرداخت ناموفق بود (یا تقلبی بوده)
-      console.error('Payment verification failed:', verifyData.message);
+      // پرداخت در درگاه ناموفق بوده است
       return NextResponse.redirect(new URL('/checkout?status=failed', request.url));
     }
 
   } catch (error) {
-    console.error('Callback Error:', error);
-    return NextResponse.redirect(new URL('/checkout?status=error', request.url));
+    console.error('Callback Critical Error:', error);
+    return NextResponse.redirect(new URL('/checkout?status=failed', request.url));
   }
 }
