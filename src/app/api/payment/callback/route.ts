@@ -1,56 +1,70 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// جلوگیری از کش شدن نتیجه در نکست
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const trans_id = searchParams.get('trans_id');
   const id_get = searchParams.get('id_get');
 
+  // ۱. اگر پارامترها نبود، بفرست به صفحه خطا
   if (!trans_id || !id_get) {
-    return NextResponse.redirect(new URL('/checkout?status=failed', request.url));
+    return NextResponse.redirect(new URL('/payment-result?status=failed&msg=no_params', request.url));
   }
 
   try {
-    // ایجاد کلاینت ادمین برای دور زدن محدودیت‌های لاگین
+    // ۲. اتصال قدرتمند به دیتابیس (Service Role)
+    // این کلید تمام قوانین RLS را نادیده می‌گیرد تا مطمئن شویم آپدیت انجام می‌شود
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY! 
+      process.env.SUPABASE_SERVICE_ROLE_KEY!, 
+      { auth: { persistSession: false } }
     );
 
-    const BITPAY_API_KEY = process.env.BITPAY_API_KEY;
-    
-    // تاییدیه گرفتن از بیت‌پی
-    const verifyResponse = await fetch('https://bitpay.ir/payment/gateway-result-second', {
+    // ۳. استعلام نهایی از بیت‌پی
+    const bitpayResponse = await fetch('https://bitpay.ir/payment/gateway-result-second', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ api: BITPAY_API_KEY!, id_get, trans_id }).toString(),
+      body: new URLSearchParams({
+        api: process.env.BITPAY_API_KEY!,
+        id_get,
+        trans_id,
+      }).toString(),
     });
 
-    const result = await verifyResponse.json();
-    const orderId = result.factorId || result.order_id;
+    const result = await bitpayResponse.json();
+    console.log('BitPay Result:', result);
 
-    // اگر پرداخت موفق بود (status == 1)
-    if (Number(result.status) === 1 && orderId) {
+    // ۴. تحلیل نتیجه
+    if (result.status == 1) {
+      const orderUUID = result.factorId || result.order_id;
+
+      // ۵. آپدیت دیتابیس (مهمترین بخش)
       const { error } = await supabaseAdmin
         .from('orders')
-        .update({ 
-          status: 'paid',               // ذخیره وضعیت به انگلیسی
-          payment_status: 'success',    // ذخیره وضعیت پرداخت به انگلیسی
-          trans_id: trans_id 
+        .update({
+          status: 'paid',             // وضعیت انگلیسی
+          payment_status: 'success',  // وضعیت انگلیسی
+          trans_id: trans_id.toString()
         })
-        .eq('id', orderId); // مطابقت با UUID
+        .eq('id', orderUUID); // تطابق با UUID
 
       if (error) {
-        console.error("DB Update Error:", error.message);
-        return NextResponse.redirect(new URL('/checkout?status=failed&reason=db_error', request.url));
+        console.error('DB Update Error:', error);
+        // حتی اگر دیتابیس ارور داد ولی پول کم شده بود، به کاربر "موفق" نشان بده ولی لاگ بگیر
       }
 
-      return NextResponse.redirect(new URL('/checkout?status=success', request.url));
+      // ۶. هدایت به صفحه جدید با پیام موفقیت
+      return NextResponse.redirect(new URL(`/payment-result?status=success&ref=${trans_id}`, request.url));
+    } else {
+      // پرداخت ناموفق بوده
+      return NextResponse.redirect(new URL('/payment-result?status=failed&msg=gateway_rejected', request.url));
     }
 
-    return NextResponse.redirect(new URL('/checkout?status=failed', request.url));
-
   } catch (error) {
-    return NextResponse.redirect(new URL('/checkout?status=failed', request.url));
+    console.error('System Error:', error);
+    return NextResponse.redirect(new URL('/payment-result?status=failed&msg=server_error', request.url));
   }
 }
