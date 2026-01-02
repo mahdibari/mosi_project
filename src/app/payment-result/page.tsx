@@ -24,6 +24,9 @@ function PaymentResultContent() {
           <p className="text-gray-600 dark:text-gray-300 mb-6">
             سفارش شما با شماره پیگیری <span className="font-mono font-bold text-indigo-600">{ref || '---'}</span> ثبت شد.
           </p>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
+           توجه کن که حتما شماره پیگیری خود را در جایی ذخیره کنید برای پیگیری سفارش خود
+            </p>
           <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg text-green-800 dark:text-green-200 text-sm mb-8">
              وضعیت سیستم: <span className="font-bold">SUCCESS</span>
           </div>

@@ -1,218 +1,219 @@
-// File: components/ProductCard.tsx
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
-import { type User } from '@supabase/supabase-js';
 import { Product } from '@/types';
 import ProductStructuredData from './ProductStructuredData';
-import { ShoppingCart, Heart, Eye, Tag } from 'lucide-react';
+import { 
+  ShoppingCart, 
+  Heart, 
+  Eye, 
+  Star, 
+  MessageCircle, 
+  Package, 
+  Tag, 
+  Zap 
+} from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
-import { formatToToman } from '@/utils/formatPrice';
-import Toast from './Toast'; // Import کامپوننت Toast سفارشی
-
+import Toast from './Toast';
 
 export default function ProductCard({ product }: { product: Product }) {
-  // مقداردهی اولیه با پراپ، اما بلافاصله توسط useEffect اصلاح می‌شود
-  const [likes, setLikes] = useState(product.total_likes);
+  const [mounted, setMounted] = useState(false);
+  const [likes, setLikes] = useState(product.total_likes || 0);
   const [userLiked, setUserLiked] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const [isLiking, setIsLiking] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  
   const { addToCart } = useCart();
   
-  
-
-  // State های مربوط به کامپوننت Toast سفارشی
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<'success' | 'error'>('success');
+  const [toast, setToast] = useState<{show: boolean, msg: string, type: 'success' | 'error'}>({
+    show: false, msg: '', type: 'success'
+  });
 
   useEffect(() => {
-    const fetchData = async () => {
-      // --- اصلاحیه مشکل 1: دریافت دقیق تعداد لایک از دیتابیس ---
-      // این کار باعث می‌شود حتی اگر والد مقدار اشتباه (مثلاً 0) بفرستد، مقدار صحیح از دیتابیس گرفته شود
-      const { data: productData, error: productError } = await supabase
-        .from('products')
-        .select('total_likes')
-        .eq('id', product.id)
-        .single();
+    setMounted(true);
+    checkUserLikeStatus();
+  }, []);
 
-      if (!productError && productData) {
-        setLikes(productData.total_likes);
-      }
+  const checkUserLikeStatus = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
 
-      // دریافت اطلاعات کاربر برای چک کردن وضعیت لایک
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      if (user) {
-        const { data: like } = await supabase.from('product_likes').select('id').eq('product_id', product.id).eq('user_id', user.id).single();
-        setUserLiked(!!like);
-      }
-    };
-    fetchData();
-  }, [product.id]);
+    const { data } = await supabase
+      .from('product_likes')
+      .select('id')
+      .eq('product_id', product.id)
+      .eq('user_id', session.user.id)
+      .single();
 
-  const finalPrice = product.discount_percentage && product.discount_percentage > 0 
-    ? product.price * (1 - product.discount_percentage / 100) 
-    : product.price;
+    if (data) setUserLiked(true);
+  };
 
   const handleLike = async () => {
-    if (!user) {
-      alert('برای لایک کردن باید وارد شوید');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setToast({ show: true, msg: 'لطفاً ابتدا وارد حساب خود شوید', type: 'error' });
       return;
     }
+
     setIsLiking(true);
-    setTimeout(() => setIsLiking(false), 300);
+    if (userLiked) {
+      const { error } = await supabase
+        .from('product_likes')
+        .delete()
+        .eq('product_id', product.id)
+        .eq('user_id', session.user.id);
 
-    const originalUserLiked = userLiked;
-    const originalLikes = likes;
-
-    setUserLiked(!originalUserLiked);
-    setLikes(originalUserLiked ? likes - 1 : likes + 1);
-
-    try {
-      if (originalUserLiked) {
-        const { error: likeError } = await supabase.from('product_likes').delete().eq('product_id', product.id).eq('user_id', user.id);
-        if (likeError) throw likeError;
-        const { error: productError } = await supabase.rpc('decrement_likes', { product_id: product.id });
-        if (productError) throw productError;
-      } else {
-        const { error: likeError } = await supabase.from('product_likes').insert({ product_id: product.id, user_id: user.id });
-        if (likeError) throw likeError;
-        const { error: productError } = await supabase.rpc('increment_likes', { product_id: product.id });
-        if (productError) throw productError;
+      if (!error) {
+        setLikes(prev => prev - 1);
+        setUserLiked(false);
       }
-    } catch (error) {
-      console.error('Error updating like:', error);
-      setUserLiked(originalUserLiked);
-      setLikes(originalLikes);
-      alert('خطایی در ثبت لایک رخ داد. لطفاً دوباره تلاش کنید.');
+    } else {
+      const { error } = await supabase
+        .from('product_likes')
+        .insert({ product_id: product.id, user_id: session.user.id });
+
+      if (!error) {
+        setLikes(prev => prev + 1);
+        setUserLiked(true);
+      }
     }
+    setIsLiking(false);
   };
 
   const handleAddToCart = async () => {
     setIsAddingToCart(true);
     try {
-      if (!user) {
-        setToastMessage('برای افزودن به سبد خرید ابتدا وارد شوید');
-        setToastType('error');
-        setShowToast(true);
-        return;
-      }
       await addToCart(product);
-    } catch (error) {
-      console.error("Error adding to cart:", error);
-      setToastMessage('خطایی در افزودن به سبد خرید رخ داد. لطفاً دوباره تلاش کنید.');
-      setToastType('error');
-      setShowToast(true);
+      setToast({ show: true, msg: 'محصول به سبد خرید اضافه شد', type: 'success' });
+    } catch (err) {
+      setToast({ show: true, msg: 'خطا در افزودن به سبد', type: 'error' });
     } finally {
       setIsAddingToCart(false);
     }
   };
 
+  if (!mounted) return null;
+
+  const finalPrice = product.discount_percentage 
+    ? product.price * (1 - product.discount_percentage / 100) 
+    : product.price;
+
   return (
-    <>
+    <article className="group relative bg-white dark:bg-gray-800 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 p-3 transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-100 dark:hover:shadow-none hover:-translate-y-2">
       <ProductStructuredData product={product} />
-      <div className="group relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-xl transition-all duration-500 hover:shadow-2xl">
-        <div className="relative h-80 w-full">
-          {product.image_url ? (
-            <Image 
-              src={product.image_url} 
-              alt={product.name} 
-              fill 
-              className="object-cover transition-transform duration-700 group-hover:scale-110" 
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" 
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gray-200"><span className="text-gray-500">عکس موجود نیست</span></div>
-          )}
-          {product.is_bestseller && <span className="absolute left-3 top-3 rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-black shadow-lg">🏆 پرفروش</span>}
-          
-          {/* --- اصلاحیه مشکل 2: اضافه کردن شرط > 0 برای جلوگیری از نمایش 0 --- */}
-          {product.discount_percentage && product.discount_percentage > 0 && (
-            <span className="absolute right-3 top-3 rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white shadow-lg">%{product.discount_percentage} تخفیف</span>
-          )}
+      
+      {/* بخش تصویر و برند */}
+      <div className="relative aspect-square overflow-hidden rounded-[2rem] bg-gray-50 dark:bg-gray-900">
+        {product.image_url ? (
+          <Image
+            src={product.image_url}
+            alt={product.name}
+            fill
+            className="object-cover transition-transform duration-700 group-hover:scale-110"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <Package className="h-12 w-12 text-gray-300" />
+          </div>
+        )}
+
+        {/* تگ برند */}
+        {product.brand_tag && (
+          <div className="absolute top-3 right-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md px-3 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-sm">
+            <Tag size={12} className="text-indigo-600" />
+            <span className="text-[10px] font-bold text-gray-700 dark:text-gray-200">{product.brand_tag}</span>
+          </div>
+        )}
+
+        {/* دکمه لایک */}
+        <button
+          onClick={handleLike}
+          disabled={isLiking}
+          className={`absolute top-3 left-3 p-3 rounded-2xl backdrop-blur-md transition-all active:scale-90 ${
+            userLiked ? 'bg-red-500 text-white shadow-lg' : 'bg-white/80 dark:bg-gray-800/80 text-gray-400 hover:text-red-500'
+          }`}
+        >
+          <Heart size={18} className={userLiked ? 'fill-current' : ''} />
+        </button>
+      </div>
+
+      {/* جزئیات محصول */}
+      <div className="mt-4 px-2 pb-2">
+        <Link href={`/products/${product.id}`}>
+          <h3 className="text-lg font-bold text-gray-800 dark:text-white line-clamp-1 group-hover:text-indigo-600 transition-colors">
+            {product.name}
+          </h3>
+        </Link>
+
+        {/* آمار محصول (لایک، نظر، موجودی) */}
+        <div className="flex items-center gap-4 mt-3 text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-1">
+            <Heart size={14} className="text-red-500" />
+            <span className="text-xs font-medium">{likes}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <MessageCircle size={14} className="text-blue-500" />
+            <span className="text-xs font-medium">{product.total_reviews || 0}</span>
+          </div>
+          <div className="flex items-center gap-1 mr-auto">
+            <Package size={14} className="text-amber-500" />
+            <span className={`text-xs font-bold ${product.stock_quantity > 0 ? 'text-green-600' : 'text-red-500'}`}>
+              {product.stock_quantity > 0 ? `${product.stock_quantity} عدد` : 'ناموجود'}
+            </span>
+          </div>
         </div>
-        
-        <div className="p-6 bg-white">
-          <Link href={`/product/${product.id}`}><h3 className="text-xl font-bold text-gray-800 mb-2">{product.name}</h3></Link>
-          
-          {product.brand_tag && (
-            <div className="flex items-center gap-2 mb-2">
-              <Tag className="w-4 h-4 text-gray-500" />
-              <span className="text-sm text-gray-600">{product.brand_tag}</span>
-            </div>
-          )}
-          
-          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
-          
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex text-yellow-400">{[...Array(5)].map((_, i) => (<span key={i} className={i < Math.round(product.average_rating || 0) ? 'text-yellow-400' : 'text-gray-300'}>★</span>))}</div>
-            <span className="text-xs text-gray-500">({product.total_reviews} نظر)</span>
-          </div>
-          
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              {/* --- اصلاحیه مشکل 2: اضافه کردن شرط > 0 اینجا هم --- */}
-              {/* اگر درصد تخفیف وجود داشت و بزرگتر از 0 بود قیمت خط‌خورده را نمایش بده */}
-{(product.discount_percentage ?? 0) > 0 && (
-  <span className="text-xs text-gray-400 line-through">{formatToToman(product.price)}</span>
-)}
-              <span className="mr-2 text-lg font-bold text-green-600">{formatToToman(finalPrice)}</span>
-            </div>
-            <span className={`rounded-full px-2 py-1 text-xs ${product.stock_quantity > 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>{product.stock_quantity > 0 ? 'موجود' : 'ناموجود'}</span>
-          </div>
-          
-          <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-100">
-            <button 
-              onClick={handleAddToCart}
-              disabled={isAddingToCart || product.stock_quantity <= 0}
-              className="group flex-1 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 py-3 font-bold text-white shadow-lg transition-all duration-300 hover:shadow-xl hover:from-indigo-600 hover:to-purple-700 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              <span className="flex items-center justify-center gap-2">
-                <ShoppingCart className="w-5 h-5 transition-transform duration-300 group-hover:rotate-12" />
-                {isAddingToCart ? 'در حال افزودن...' : 'افزودن به سبد'}
+
+        {/* امتیاز */}
+        <div className="flex items-center gap-1 mt-3">
+          <Star size={14} className="fill-yellow-400 text-yellow-400" />
+          <span className="text-xs font-bold text-gray-700 dark:text-gray-300">
+            {product.average_rating ? product.average_rating.toFixed(1) : 'جدید'}
+          </span>
+        </div>
+
+        {/* قیمت و دکمه خرید */}
+        <div className="mt-5 flex items-center justify-between">
+          <div className="flex flex-col">
+            {product.discount_percentage && product.discount_percentage > 0 && (
+              <span className="text-xs text-gray-400 line-through mb-1">
+                {product.price.toLocaleString()}
               </span>
-            </button>
-            
-            <Link
-              href={`/products/${product.id}`}
-              className="group flex h-12 w-12 items-center justify-center rounded-full border-2 border-gray-300 bg-white text-gray-700 transition-all duration-300 hover:border-indigo-500 hover:text-indigo-600 hover:scale-110 active:scale-95"
-            >
-              <Eye className="w-5 h-5" />
-            </Link>
-            
-            <button
-              onClick={handleLike}
-              className={`group relative flex h-12 w-12 items-center justify-center rounded-full border-2 ${
-                userLiked ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-white'
-              } transition-all duration-300 transform hover:scale-110 active:scale-95 ${
-                isLiking ? 'scale-125' : ''
-              }`}
-            >
-              <Heart
-                className={`w-6 h-6 transition-all duration-300 ${
-                  userLiked ? 'fill-red-500 text-red-500' : 'text-gray-400'
-                } ${isLiking ? 'animate-ping' : ''}`}
-              />
-            </button>
+            )}
+            <div className="flex items-center gap-1">
+              <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                {finalPrice.toLocaleString()}
+              </span>
+              <span className="text-[10px] font-bold text-gray-400">تومان</span>
+            </div>
           </div>
-          
-          <p className="text-center text-xs text-gray-500 mt-3">{likes} نفر این محصول را دوست داشتند</p>
+
+          <button 
+            onClick={handleAddToCart}
+            disabled={isAddingToCart || product.stock_quantity <= 0}
+            className={`relative p-4 rounded-2xl transition-all active:scale-95 flex items-center justify-center ${
+              product.stock_quantity > 0 
+                ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none' 
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            {isAddingToCart ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <ShoppingCart size={20} />
+            )}
+          </button>
         </div>
       </div>
-      
-      {/* کامپوننت Toast سفارشی */}
-      <Toast
-        message={toastMessage}
-        type={toastType}
-        isVisible={showToast}
-        onClose={() => setShowToast(false)}
+
+      <Toast 
+        isVisible={toast.show} 
+        message={toast.msg} 
+        type={toast.type} 
+        onClose={() => setToast({...toast, show: false})} 
       />
-    </>
+    </article>
   );
 }
