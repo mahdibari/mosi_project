@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { ShoppingBag, Truck, ArrowRight } from 'lucide-react';
 import { formatToToman } from '@/utils/formatPrice';
 
-const SHIPPING_FEE = 250000; // ۲۵۰ هزار تومان
+
 
 export default function CartPage() {
   const { cartItems, cartTotal, isLoading } = useCart();
@@ -34,13 +34,10 @@ export default function CartPage() {
               <span className="text-gray-500">مجموع محصولات:</span>
               <span className="font-bold">{formatToToman(cartTotal)}</span>
             </div>
-            <div className="flex justify-between text-red-500">
-              <span>هزینه ارسال:</span>
-              <span className="font-bold">{formatToToman(SHIPPING_FEE)}</span>
-            </div>
+           
             <div className="border-t pt-4 flex justify-between text-lg font-black text-indigo-600">
               <span>مبلغ قابل پرداخت:</span>
-              <span>{formatToToman(cartTotal + SHIPPING_FEE)}</span>
+              <span>{formatToToman(cartTotal)}</span>
             </div>
           </div>
           <Link href="/checkout" className="w-full mt-8 flex items-center justify-center gap-2 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all">
