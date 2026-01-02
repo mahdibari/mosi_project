@@ -33,11 +33,7 @@ export async function POST(request: Request) {
     // ۲. ثبت یا آپدیت سفارش در دیتابیس با id_get (برای اینکه موقع برگشت پیداش کنیم)
     await supabaseAdmin
       .from('orders')
-      .update({
-         id_get: idGet.toString(),
-        status: 'pending'
-        
-         })
+      .update({ id_get: idGet.toString(), status: 'pending' })
       .eq('id', factorId);
 
     const bitpayRedirectUrl = `https://bitpay.ir/payment/gateway-${idGet}-get`;
