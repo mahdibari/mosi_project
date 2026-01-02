@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { MapPin, Phone, User, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckCircle, X, XCircle, RefreshCw as RetryIcon, AlertTriangle } from 'lucide-react';
+import { MapPin, Phone, User,CreditCard, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckCircle, X, XCircle, RefreshCw as RetryIcon, AlertTriangle } from 'lucide-react';
 import { formatToToman } from '@/utils/formatPrice';
 import Image from 'next/image';
 
@@ -13,6 +13,9 @@ function CheckoutContent() {
   const { cartItems, cartTotal, clearCart, isLoading } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
+ 
+  const SHIPPING_FEE = 250000;
+  const totalWithShipping = cartTotal + SHIPPING_FEE;
   
   const status = searchParams.get('status');
   const isSuccess = status === 'success';
@@ -20,7 +23,33 @@ function CheckoutContent() {
 
   // --- مدیریت نوتیفیکیشن و سبد خرید ---
   const [showNotification, setShowNotification] = useState(false);
+  const handlePayment = async () => {
+    try {
+      // ۱. اینجا مبلغ نهایی را برای درگاه می‌فرستیم
+      console.log("مقدار ارسالی به درگاه:", totalWithShipping);
 
+      const response = await fetch('/api/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: totalWithShipping, // مبلغ اصلاح شده با هزینه ارسال
+          description: `پرداخت سفارش برای ${formData.full_name}`,
+          metadata: {
+            ...formData,
+            shipping_fee: SHIPPING_FEE
+          }
+        }),
+      });
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url; // انتقال به درگاه
+      }
+    } catch (error) {
+      console.error("خطا در اتصال به درگاه:", error);
+    }
+  };
+ 
   useEffect(() => {
     if (isSuccess) {
       clearCart();
@@ -67,8 +96,7 @@ function CheckoutContent() {
     router.push('/cart');
     return null;
   }
-const SHIPPING_FEE = 250000;
-const finalAmount = cartTotal + SHIPPING_FEE;
+
   // --- نمایش وضعیت موفقیت آمیز ---
   if (isSuccess) {
     return (
@@ -300,8 +328,13 @@ const finalAmount = cartTotal + SHIPPING_FEE;
               {errors.postal_code && <p className="text-red-500 text-xs mt-1">{errors.postal_code}</p>}
             </div>
 
-            <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:opacity-90 disabled:opacity-50">
-              {isSubmitting ? 'در حال انتقال به درگاه...' : 'پرداخت و ثبت سفارش'}
+            <button 
+              onClick={handlePayment}
+              disabled={isSubmitting}
+              className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all "
+            >
+              {isSubmitting ? "در حال اتصال..." : "تایید و پرداخت آنلاین"}
+              <CreditCard size={20} />
             </button>
           </form>
         </section>
@@ -326,9 +359,13 @@ const finalAmount = cartTotal + SHIPPING_FEE;
                ))}
             </div>
             <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between text-green-500">
+                <span className="flex items-center gap-1"><Truck size={16}/> هزینه ارسال ثابت:</span>
+                <span className="font-bold">{formatToToman(SHIPPING_FEE)}</span>
+              </div>
                 <div className="flex justify-between text-xl font-bold text-gray-800 dark:text-gray-100">
                     <span>مبلغ نهایی:</span>
-                    <span>{formatToToman(finalAmount)}</span>
+                    <span>{formatToToman(totalWithShipping)}</span>
                 </div>
             </div>
           </div>
