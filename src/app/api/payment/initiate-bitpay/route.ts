@@ -30,11 +30,12 @@ export async function POST(request: Request) {
     }
 
     // ۳. ارسال درخواست به بیت‌پی
-    const formData = new URLSearchParams();
-    formData.append('api', BITPAY_API_KEY!);
-    formData.append('amount', (amount * 10).toString()); // تبدیل به ریال
-    formData.append('redirect', redirectUrl);
-    formData.append('factorId', factorId); // ارسال UUID به درگاه
+   // بخشی از کد initiate که باید اصلاح شود:
+const formData = new URLSearchParams();
+formData.append('api', BITPAY_API_KEY!); // علامت تعجب مشکل را حل می‌کند
+formData.append('amount', (Number(amount) * 10).toString()); // حتما تومان را به ریال تبدیل کن
+formData.append('redirect', redirectUrl);
+formData.append('factorId', factorId.toString()); // این باید UUID سفارش باشد
 
     const response = await fetch('https://bitpay.ir/payment/gateway-send', {
       method: 'POST',
