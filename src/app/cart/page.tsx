@@ -16,8 +16,8 @@ export default function CartPage() {
 
   return (
     <main className="container mx-auto px-4 py-8 max-w-6xl">
-      <h1 className="text-2xl font-black mb-8 flex items-center gap-2">
-        <ShoppingBag className="text-indigo-600" /> سبد خرید شما
+      <h1 className="text-2xl font-black mb-8 flex items-center gap-2 text-white">
+        <ShoppingBag className="text-indigo-600 text-white" /> سبد خرید شما
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

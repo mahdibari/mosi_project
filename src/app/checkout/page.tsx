@@ -4,16 +4,16 @@ import { useState, useEffect, Suspense } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { MapPin, Phone, User,CreditCard, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckCircle, X, XCircle, RefreshCw as RetryIcon, AlertTriangle } from 'lucide-react';
+import { MapPin, Phone, User, CreditCard, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckCircle, X, XCircle, RefreshCw as RetryIcon, AlertTriangle } from 'lucide-react';
 import { formatToToman } from '@/utils/formatPrice';
 import Image from 'next/image';
-
 
 function CheckoutContent() {
   const { cartItems, cartTotal, clearCart, isLoading } = useCart();
   const router = useRouter();
   const searchParams = useSearchParams();
- 
+  
+  // تعریف هزینه ثابت ارسال
   const SHIPPING_FEE = 250000;
   const totalWithShipping = cartTotal + SHIPPING_FEE;
   
@@ -21,48 +21,7 @@ function CheckoutContent() {
   const isSuccess = status === 'success';
   const isFailed = status === 'failed';
 
-  // --- مدیریت نوتیفیکیشن و سبد خرید ---
   const [showNotification, setShowNotification] = useState(false);
-  const handlePayment = async () => {
-    try {
-      // ۱. اینجا مبلغ نهایی را برای درگاه می‌فرستیم
-      console.log("مقدار ارسالی به درگاه:", totalWithShipping);
-
-      const response = await fetch('/api/payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: totalWithShipping, // مبلغ اصلاح شده با هزینه ارسال
-          description: `پرداخت سفارش برای ${formData.full_name}`,
-          metadata: {
-            ...formData,
-            shipping_fee: SHIPPING_FEE
-          }
-        }),
-      });
-
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url; // انتقال به درگاه
-      }
-    } catch (error) {
-      console.error("خطا در اتصال به درگاه:", error);
-    }
-  };
- 
-  useEffect(() => {
-    if (isSuccess) {
-      clearCart();
-      // نمایش نوتیفیکیشن برای 4 ثانیه
-      setShowNotification(true);
-      const timer = setTimeout(() => {
-        setShowNotification(false);
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [isSuccess]);
-  // ----------------------------------
-
   const [formData, setFormData] = useState({
     full_name: '',
     phone: '',
@@ -91,17 +50,26 @@ function CheckoutContent() {
     },
   ];
 
-  // اگر سبد خالی است و وضعیت خاصی (موفقیت یا شکست) نداریم، کاربر را به سبد خرید برگردان
+  useEffect(() => {
+    if (isSuccess) {
+      clearCart();
+      setShowNotification(true);
+      const timer = setTimeout(() => {
+        setShowNotification(false);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, clearCart]);
+
   if (!isLoading && cartItems.length === 0 && !isSuccess && !isFailed) {
     router.push('/cart');
     return null;
   }
 
-  // --- نمایش وضعیت موفقیت آمیز ---
+  // نمایش وضعیت موفقیت
   if (isSuccess) {
     return (
       <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center relative">
-        {/* --- نوتیفیکیشن موفقیت --- */}
         {showNotification && (
           <div className="fixed bottom-5 left-1/2 transform -translate-x-1/2 md:left-auto md:right-5 md:translate-x-0 z-50 bg-green-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-bounce">
             <CheckCircle className="w-6 h-6" />
@@ -114,8 +82,6 @@ function CheckoutContent() {
             </button>
           </div>
         )}
-        {/* -------------------------- */}
-
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10 max-w-lg w-full text-center border border-green-100 dark:border-green-900">
           <div className="w-20 h-20 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
@@ -124,31 +90,19 @@ function CheckoutContent() {
           <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed mb-6">
             بزودی توسط ادمین های ما بررسی میگردد و مرسوله شما ارسال میشود.
           </p>
-          
           <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-8 text-sm text-green-800 dark:text-green-200">
             وضعیت پرداخت در سیستم: <span className="font-bold">successful</span>
           </div>
-
           <div className="flex flex-col gap-3">
-            <button 
-              onClick={() => router.push('/orders')}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors"
-            >
-              مشاهده سفارشات
-            </button>
-            <button 
-              onClick={() => router.push('/')}
-              className="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors"
-            >
-              بازگشت به فروشگاه
-            </button>
+            <button onClick={() => router.push('/orders')} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors">مشاهده سفارشات</button>
+            <button onClick={() => router.push('/')} className="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors">بازگشت به فروشگاه</button>
           </div>
         </div>
       </main>
     );
   }
 
-  // --- نمایش وضعیت شکست (Failed) ---
+  // نمایش وضعیت شکست
   if (isFailed) {
     return (
       <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center">
@@ -157,24 +111,10 @@ function CheckoutContent() {
             <XCircle className="w-12 h-12 text-red-600 dark:text-red-400" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">پرداخت ناموفق بود</h1>
-          <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed mb-8">
-            متاسفانه تراکنش شما با مشکل مواجه شد یا توسط شما لغو شده است.
-          </p>
-          
+          <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed mb-8">متاسفانه تراکنش شما با مشکل مواجه شد یا توسط شما لغو شده است.</p>
           <div className="flex flex-col gap-3">
-            <button 
-              onClick={() => router.push('/cart')}
-              className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              <RetryIcon className="w-4 h-4" />
-              تلاش مجدد
-            </button>
-            <button 
-              onClick={() => router.push('/')}
-              className="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors"
-            >
-              بازگشت به فروشگاه
-            </button>
+            <button onClick={() => router.push('/cart')} className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"><RetryIcon className="w-4 h-4" /> تلاش مجدد</button>
+            <button onClick={() => router.push('/')} className="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors">بازگشت به فروشگاه</button>
           </div>
         </div>
       </main>
@@ -184,21 +124,15 @@ function CheckoutContent() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
-    }
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
     const phoneRegex = /^09[0-9]{9}$/;
-    if (!phoneRegex.test(formData.phone)) {
-      newErrors.phone = 'شماره موبایل نامعتبر است.';
-    }
+    if (!phoneRegex.test(formData.phone)) newErrors.phone = 'شماره موبایل نامعتبر است.';
     const postalCodeRegex = /^\d{10}$/;
-    if (!postalCodeRegex.test(formData.postal_code)) {
-      newErrors.postal_code = 'کد پستی ۱۰ رقمی است.';
-    }
+    if (!postalCodeRegex.test(formData.postal_code)) newErrors.postal_code = 'کد پستی ۱۰ رقمی است.';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -213,6 +147,7 @@ function CheckoutContent() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('کاربر یافت نشد. لطفا وارد شوید.');
 
+      // ثبت آدرس
       const { data: newAddress, error: addressError } = await supabase
         .from('addresses')
         .insert([{ ...formData, user_id: user.id }])
@@ -221,12 +156,13 @@ function CheckoutContent() {
 
       if (addressError) throw addressError;
 
+      // ثبت سفارش با مبلغ نهایی (شامل هزینه ارسال)
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert([{
           user_id: user.id,
           address_id: newAddress.id,
-          total_amount: cartTotal,
+          total_amount: totalWithShipping, // اصلاح شد: هزینه ارسال لحاظ شد
           status: 'pending',
         }])
         .select()
@@ -234,6 +170,7 @@ function CheckoutContent() {
 
       if (orderError) throw orderError;
 
+      // ثبت آیتم‌ها
       const orderItemsToInsert = cartItems.map(item => ({
         order_id: newOrder.id,
         product_id: item.product.id,
@@ -243,21 +180,19 @@ function CheckoutContent() {
           : item.product.price,
       }));
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItemsToInsert);
-
+      const { error: itemsError } = await supabase.from('order_items').insert(orderItemsToInsert);
       if (itemsError) throw itemsError;
 
       const callbackUrl = `${window.location.origin}/api/payment/callback`;
       const firstProductName = cartItems[0]?.product.name || 'محصولات منتخب';
       
+      // داده‌های ارسالی به درگاه با مبلغ نهایی
       const paymentData = {
-        amount: cartTotal,
+        amount: totalWithShipping, // اصلاح شد: ارسال مبلغ با هزینه پست به API
         name: formData.full_name,
         email: user.email || '',
         phone: formData.phone,
-        description: `خرید: ${firstProductName}`,
+        description: `خرید از مصی شاپ: ${firstProductName}`,
         factorId: newOrder.id,
         redirectUrl: callbackUrl,
       };
@@ -294,22 +229,22 @@ function CheckoutContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <aside className="lg:col-span-1">
-           <div className="sticky top-24 space-y-4">
-               {infoBoxes.map((box, index) => (
-                <div key={index} className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
-                  <button onClick={() => setActiveInfoBox(activeInfoBox === index ? null : index)} className="w-full flex items-center justify-between p-4 text-right hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <div className="flex items-center gap-3"><span className="text-indigo-600 dark:text-indigo-400">{box.icon}</span><span className="font-semibold text-gray-800 dark:text-gray-100">{box.title}</span></div>
-                    <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${activeInfoBox === index ? 'rotate-180' : ''}`} />
-                  </button>
-                  {activeInfoBox === index && <div className="px-4 pb-4 text-sm text-gray-600 dark:text-gray-400">{box.content}</div>}
-                </div>
-              ))}
-           </div>
+          <div className="sticky top-24 space-y-4">
+            {infoBoxes.map((box, index) => (
+              <div key={index} className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
+                <button onClick={() => setActiveInfoBox(activeInfoBox === index ? null : index)} className="w-full flex items-center justify-between p-4 text-right hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <div className="flex items-center gap-3"><span className="text-indigo-600 dark:text-indigo-400">{box.icon}</span><span className="font-semibold text-gray-800 dark:text-gray-100">{box.title}</span></div>
+                  <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${activeInfoBox === index ? 'rotate-180' : ''}`} />
+                </button>
+                {activeInfoBox === index && <div className="px-4 pb-4 text-sm text-gray-600 dark:text-gray-400">{box.content}</div>}
+              </div>
+            ))}
+          </div>
         </aside>
 
         <section className="lg:col-span-2">
           <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 space-y-6">
-             <div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">نام و نام خانوادگی</label>
               <input type="text" name="full_name" value={formData.full_name} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
             </div>
@@ -329,11 +264,11 @@ function CheckoutContent() {
             </div>
 
             <button 
-              onClick={handlePayment}
+              type="submit"
               disabled={isSubmitting}
-              className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all "
+              className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 disabled:bg-gray-400"
             >
-              {isSubmitting ? "در حال اتصال..." : "تایید و پرداخت آنلاین"}
+              {isSubmitting ? "در حال اتصال به درگاه..." : "تایید و پرداخت آنلاین"}
               <CreditCard size={20} />
             </button>
           </form>
@@ -345,28 +280,32 @@ function CheckoutContent() {
               <h2 className="text-xl font-semibold">خلاصه سفارش</h2>
             </div>
             <div className="p-6 max-h-96 overflow-y-auto">
-               {cartItems.map(item => (
-                 <div key={item.id} className="flex gap-3 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
-                    <div className="relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden">
-                        {item.product.image_url ? <Image src={item.product.image_url} alt={item.product.name} fill className="object-cover" /> : <div className="w-full h-full bg-gray-200 dark:bg-gray-700"></div>}
-                    </div>
-                    <div className="flex-grow">
-                        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{item.product.name}</h4>
-                        <p className="text-xs text-gray-500">تعداد: {item.quantity}</p>
-                        <p className="text-sm font-bold text-indigo-600">{formatToToman((item.product.discount_percentage ? item.product.price * (1 - item.product.discount_percentage / 100) : item.product.price) * item.quantity)}</p>
-                    </div>
-                 </div>
-               ))}
+              {cartItems.map(item => (
+                <div key={item.id} className="flex gap-3 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
+                  <div className="relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden">
+                    {item.product.image_url ? <Image src={item.product.image_url} alt={item.product.name} fill className="object-cover" /> : <div className="w-full h-full bg-gray-200 dark:bg-gray-700"></div>}
+                  </div>
+                  <div className="flex-grow">
+                    <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{item.product.name}</h4>
+                    <p className="text-xs text-gray-500">تعداد: {item.quantity}</p>
+                    <p className="text-sm font-bold text-indigo-600">{formatToToman((item.product.discount_percentage ? item.product.price * (1 - item.product.discount_percentage / 100) : item.product.price) * item.quantity)}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-              <div className="flex justify-between text-green-500">
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 space-y-3">
+              <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <span>جمع کل خرید:</span>
+                <span>{formatToToman(cartTotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-red-500">
                 <span className="flex items-center gap-1"><Truck size={16}/> هزینه ارسال ثابت:</span>
                 <span className="font-bold">{formatToToman(SHIPPING_FEE)}</span>
               </div>
-                <div className="flex justify-between text-xl font-bold text-gray-800 dark:text-gray-100">
-                    <span>مبلغ نهایی:</span>
-                    <span>{formatToToman(totalWithShipping)}</span>
-                </div>
+              <div className="pt-3 border-t border-gray-100 dark:border-gray-700 flex justify-between text-xl font-black text-gray-800 dark:text-gray-100">
+                <span>مبلغ نهایی:</span>
+                <span>{formatToToman(totalWithShipping)}</span>
+              </div>
             </div>
           </div>
         </aside>

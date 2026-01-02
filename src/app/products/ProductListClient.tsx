@@ -114,7 +114,7 @@ export default function ProductListClient({ products, categories }: ProductListC
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br ">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/95 to-purple-600/95 z-10"></div>
@@ -273,7 +273,7 @@ export default function ProductListClient({ products, categories }: ProductListC
       <section className="pb-16 lg:pb-24">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-800">همه محصولات</h2>
+            <h2 className="text-3xl font-bold ">همه محصولات</h2>
             <p className="text-gray-600">{filteredAndSortedProducts.length} محصول یافت شد</p>
           </div>
 
