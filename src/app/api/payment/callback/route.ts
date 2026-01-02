@@ -11,7 +11,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    // استفاده از Service Role برای دور زدن RLS و مشکل "کاربر یافت نشد"
+    // ایجاد کلاینت ادمین برای دور زدن محدودیت‌های لاگین
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY! 
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 
     const BITPAY_API_KEY = process.env.BITPAY_API_KEY;
     
-    // تاییدیه از درگاه بیت‌پی
+    // تاییدیه گرفتن از بیت‌پی
     const verifyResponse = await fetch('https://bitpay.ir/payment/gateway-result-second', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -27,25 +27,22 @@ export async function GET(request: Request) {
     });
 
     const result = await verifyResponse.json();
-    
-    // در اسکیما شما ID از نوع UUID است
     const orderId = result.factorId || result.order_id;
 
+    // اگر پرداخت موفق بود (status == 1)
     if (Number(result.status) === 1 && orderId) {
-      // آپدیت دیتابیس - وضعیت‌ها به انگلیسی ذخیره می‌شوند
       const { error } = await supabaseAdmin
         .from('orders')
         .update({ 
-          status: 'paid',               // موفق به انگلیسی
-          payment_status: 'success',    // موفق به انگلیسی
+          status: 'paid',               // ذخیره وضعیت به انگلیسی
+          payment_status: 'success',    // ذخیره وضعیت پرداخت به انگلیسی
           trans_id: trans_id 
         })
-        .eq('id', orderId); // مقایسه UUID با آیدی برگشتی
+        .eq('id', orderId); // مطابقت با UUID
 
       if (error) {
-        console.error("Database Error:", error.message);
-        // اگر باز هم آپدیت نشد، احتمالا بخاطر UUID است
-        return NextResponse.redirect(new URL(`/checkout?status=failed&db_error=${error.message}`, request.url));
+        console.error("DB Update Error:", error.message);
+        return NextResponse.redirect(new URL('/checkout?status=failed&reason=db_error', request.url));
       }
 
       return NextResponse.redirect(new URL('/checkout?status=success', request.url));
