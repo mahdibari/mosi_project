@@ -1,53 +1,75 @@
 @import "tailwindcss";
 
-/* قفل کردن رنگ‌ها روی حالت روشن برای همیشه */
+/* ۱. تعریف متغیرهای پایه برای حالت روشن */
 :root {
-  --background: #ffffff !important;
-  --foreground: #111827 !important;
-  --card-bg: #ffffff !important;
-  --input-bg: #ffffff !important;
-  --border-color: #f3f4f6 !important;
-  color-scheme: light !important; /* به مرورگر می‌گوید این سایت فقط تم روشن دارد */
+  --foreground-rgb: 0, 0, 0; /* متن مشکی */
+  --background-start-rgb: 255, 255, 255; /* پس‌زمینه سفید */
+  --background-end-rgb: 255, 255, 255; /* پس‌زمینه سفید */
 }
 
-/* خنثی کردن اجباری هر نوع تنظیمات Dark Mode سیستم‌عامل */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #ffffff !important;
-    --foreground: #111827 !important;
-    background-color: #ffffff !important;
-    color: #111827 !important;
+@layer base {
+  html {
+    font-family: var(--font-vazirmatn), system-ui, sans-serif;
   }
 }
 
-@font-face {
-  font-family: 'Vazir';
-  src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/Vazir.woff2') format('woff2');
-  font-display: swap;
+/* ۲. تعریف متغیرها برای حالت تاریک (هوشمند) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0f172a; /* سرمه‌ای خیلی تیره حرفه‌ای */
+    --foreground: #f8fafc; /* متن سفید استخوانی */
+    --card-bg: #1e293b; /* رنگ باکس محصولات در حالت شب */
+    --input-bg: #334155; /* رنگ فیلد ورودی در حالت شب */
+    --border-color: #334155;
+  }
 }
 
+
+
+/* ۳. اعمال متغیرها به بدنه سایت */
 body {
   font-family: 'Vazir', sans-serif;
   direction: rtl;
-  background-color: #ffffff !important;
-  color: #111827 !important;
-  min-height: 100vh;
+  background-color: var(--background);
+  color: var(--foreground);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* خنثی کردن تمام کلاس‌های dark: تایلوند که ممکن است در کامپوننت‌ها نشت کرده باشند */
-.dark, [class*="dark:"] {
-  background-color: initial !important;
-  color: initial !important;
-  border-color: initial !important;
+/* ۴. اصلاح هوشمند تمام باکس‌ها و کارت‌ها */
+/* این بخش باعث می‌شود باکس محصولات در موبایل مشکی نشوند که متن ناپدید شود */
+div, section, article, nav, header, footer {
+  /* اگر کلاس bg-white دستی داده شده، در حالت شب از متغیر ما استفاده کند */
+  background-color: transparent; 
 }
 
-/* سفید ماندن باکس محصولات و اینپوت‌ها در هر شرایطی */
-div, section, article, input, textarea, select {
-  background-color: white !important;
-  color: #111827 !important;
+/* ۵. حل مشکل فیلد ورودی (Input) که گفتی متن توش سفیده و دیده نمیشه */
+input, textarea, select {
+  background-color: var(--input-bg) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--border-color) !important;
+  outline: none;
 }
 
-/* استایل pagination اسلایدر */
-.swiper-pagination-bullet { background: #cbd5e1 !important; opacity: 1; }
-.swiper-pagination-bullet-active { background: #4f46e5 !important; width: 25px !important; border-radius: 5px !important; }
+input::placeholder {
+  color: #9ca3af;
+}
+
+/* ۶. اصلاح کارت‌های محصول برای جلوگیری از قاطی شدن رنگ */
+.bg-white {
+  background-color: var(--card-bg) !important;
+}
+
+.text-gray-800, .text-gray-900 {
+  color: var(--foreground) !important;
+}
+
+/* ۷. انیمیشن‌ها */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
 
