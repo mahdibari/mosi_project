@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fa" dir="rtl">
+    <html lang="fa" dir="rtl" className="light" style={{ colorScheme: 'light' }}>
      
       <body className="min-h-screen flex flex-col">
         <Header />

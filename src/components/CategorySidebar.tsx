@@ -1,111 +1,69 @@
-// File: components/CategorySidebar.tsx
-
 'use client';
 
-import { Trophy, Flame, Star, Grid3x3, Tag } from 'lucide-react';
+import { Dispatch, SetStateAction } from 'react';
 import { Category, Brands } from '@/types';
+
+// تعریف تایپ فیلتر دقیقاً مطابق با صفحه اصلی
+type FilterState = { type: 'category' | 'brand' | 'special'; value: string | null };
 
 interface CategorySidebarProps {
   categories: Category[];
   brands: Brands[];
-  activeFilter: { type: 'category' | 'brand' | 'special'; value: string | null };
-  setActiveFilter: (filter: { type: 'category' | 'brand' | 'special'; value: string | null }) => void;
+  activeFilter: FilterState;
+  onFilterChange: Dispatch<SetStateAction<FilterState>>;
 }
 
-export default function CategorySidebar({ categories, brands, activeFilter, setActiveFilter }: CategorySidebarProps) {
-  const specialFilters = [
-    { key: 'bestsellers', label: 'محصولات پرفروش', icon: <Trophy className="w-5 h-5" /> },
-    { key: 'discounted', label: 'محصولات با تخفیف', icon: <Flame className="w-5 h-5" /> },
-    { key: 'topRated', label: 'محصولات با امتیاز بالا', icon: <Star className="w-5 h-5" /> },
-  ];
-
-  const handleFilterClick = (type: 'category' | 'brand' | 'special', value: string | null) => {
-    if (activeFilter.type === type && activeFilter.value === value) {
-      setActiveFilter({ type: 'special', value: null });
-    } else {
-      setActiveFilter({ type, value });
-    }
+export default function CategorySidebar({ 
+  categories, 
+  brands, 
+  activeFilter, 
+  onFilterChange 
+}: CategorySidebarProps) {
+  
+  const handleFilter = (type: 'category' | 'brand' | 'special', value: string | null) => {
+    onFilterChange({ type, value });
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-lg h-fit sticky top-6 border border-gray-100">
-      <h2 className="text-xl font-bold mb-6 text-gray-800 border-b pb-3">فیلترها</h2>
+    <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-6 shadow-sm border border-gray-100 dark:border-gray-800 sticky top-4">
+      <h3 className="text-lg font-black mb-6 flex items-center gap-2 dark:text-white">
+        <span className="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
+        دسته‌بندی‌ها
+      </h3>
       
-      {/* فیلترهای ویژه با انیمیشن */}
       <div className="space-y-2 mb-8">
-        {specialFilters.map((filter) => (
-          <button
-            key={filter.key}
-            onClick={() => handleFilterClick('special', filter.key)}
-            className={`w-full text-right px-4 py-3 rounded-xl flex items-center justify-end gap-3 font-medium transition-all duration-300 transform hover:scale-105 ${
-              activeFilter.type === 'special' && activeFilter.value === filter.key
-                ? 'bg-gradient-to-l from-indigo-500 to-purple-600 text-white shadow-lg scale-105'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+        <button 
+          onClick={() => handleFilter('special', null)}
+          className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeFilter.type === 'special' ? 'bg-indigo-600 text-white shadow-lg' : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+        >
+          همه محصولات
+        </button>
+        {categories.map((cat) => (
+          <button 
+            key={cat.id}
+            onClick={() => handleFilter('category', cat.id)}
+            className={`w-full text-right px-4 py-3 rounded-xl transition-all ${activeFilter.type === 'category' && activeFilter.value === cat.id ? 'bg-indigo-600 text-white' : 'hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
           >
-            {filter.label}
-            <span className={`transition-transform duration-300 ${activeFilter.type === 'special' && activeFilter.value === filter.key ? 'text-white' : 'text-indigo-500'}`}>
-              {filter.icon}
-            </span>
+            {cat.name}
           </button>
         ))}
       </div>
 
-      {/* لیست دسته‌بندی‌ها با انیمیشن */}
-      <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
-        <Grid3x3 className="w-5 h-5 text-gray-500" />
-        دسته‌بندی‌ها
-      </h3>
-      <ul className="space-y-2 mb-8">
-        <li>
-          <button
-            onClick={() => handleFilterClick('special', null)}
-            className={`w-full text-right px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 ${
-              !activeFilter.value
-                ? 'bg-gradient-to-l from-green-500 to-teal-600 text-white shadow-lg scale-105'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            همه محصولات
-          </button>
-        </li>
-        {categories.map((category) => (
-          <li key={category.id}>
-            <button
-              onClick={() => handleFilterClick('category', category.id)}
-              className={`w-full text-right px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 ${
-                activeFilter.type === 'category' && activeFilter.value === category.id
-                  ? 'bg-gradient-to-l from-indigo-500 to-purple-600 text-white shadow-lg scale-105'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {category.name}
-            </button>
-          </li>
-        ))}
-      </ul>
-
-      {/* لیست برندها با انیمیشن */}
-      <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center gap-2">
-        <Tag className="w-5 h-5 text-gray-500" />
+      <h3 className="text-lg font-black mb-6 flex items-center gap-2 dark:text-white border-t border-gray-100 dark:border-gray-800 pt-6">
+        <span className="w-1.5 h-6 bg-pink-500 rounded-full"></span>
         برندها
       </h3>
-      <ul className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
         {brands.map((brand) => (
-          <li key={brand.id}>
-            <button
-              onClick={() => handleFilterClick('brand', brand.id)}
-              className={`w-full text-right px-4 py-3 rounded-xl font-medium transition-all duration-300 transform hover:scale-105 ${
-                activeFilter.type === 'brand' && activeFilter.value === brand.id
-                  ? 'bg-gradient-to-l from-indigo-500 to-purple-600 text-white shadow-lg scale-105'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {brand.name}
-            </button>
-          </li>
+          <button 
+            key={brand.id}
+            onClick={() => handleFilter('brand', brand.id)}
+            className={`text-center py-2 px-1 rounded-lg text-xs border transition-all ${activeFilter.type === 'brand' && activeFilter.value === brand.id ? 'bg-pink-500 border-pink-500 text-white' : 'border-gray-100 dark:border-gray-800 text-gray-500 hover:border-pink-200'}`}
+          >
+            {brand.name}
+          </button>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
