@@ -1,16 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // useEffect اضافه شد
 import { useCart } from '@/contexts/CartContext';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase'; // مطمئن شوید این کلاینت درست است
-import { MapPin, Phone, User, CreditCard, ChevronDown, Truck, RefreshCcw, HelpCircle } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation'; // useSearchParams اضافه شد
+import { supabase } from '@/lib/supabase';
+import { MapPin, Phone, User, CreditCard, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckCircle } from 'lucide-react'; // آیکون CheckCircle اضافه شد
 import { formatToToman } from '@/utils/formatPrice';
 import Image from 'next/image';
 
 export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart, isLoading } = useCart();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // بررسی اینکه آیا کاربر از درگاه با موفقیت برگشته است؟
+  const isSuccess = searchParams.get('status') === 'success';
+
+  // وقتی صفحه لود شد و وضعیت موفقیت آمیز بود، سبد خرید را خالی کن
+  useEffect(() => {
+    if (isSuccess) {
+      clearCart();
+      // اختیاری: تمیز کردن URL از پارامترها
+      router.replace('/checkout');
+    }
+  }, [isSuccess]);
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -40,10 +53,40 @@ export default function CheckoutPage() {
     },
   ];
 
-  if (!isLoading && cartItems.length === 0) {
+  // تغییر در شرط خالی بودن سبد: اگر کاربر از پرداخت موفق برنگشته باشد و سبد خالی باشد، برود به سبد خرید
+  if (!isLoading && cartItems.length === 0 && !isSuccess) {
     router.push('/cart');
     return null;
   }
+
+  // ------------------ نمایش پیام موفقیت ------------------
+  if (isSuccess) {
+    return (
+      <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10 max-w-lg w-full text-center border border-gray-100 dark:border-gray-700">
+          <div className="w-20 h-20 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
+          </div>
+          
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+            خریدتون موفقیت آمیز بود
+          </h1>
+          
+          <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed mb-8">
+            بزودی توسط ادمین های ما بررسی میگردد و مرسوله شما ارسال میشود.
+          </p>
+
+          <button 
+            onClick={() => router.push('/')}
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg shadow-indigo-200 dark:shadow-none"
+          >
+            بازگشت به فروشگاه
+          </button>
+        </div>
+      </main>
+    );
+  }
+  // -------------------------------------------------------
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -74,11 +117,9 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      // 1. دریافت کاربر لاگین کرده
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error('کاربر یافت نشد. لطفا وارد شوید.');
 
-      // 2. ایجاد آدرس
       const { data: newAddress, error: addressError } = await supabase
         .from('addresses')
         .insert([{ ...formData, user_id: user.id }])
@@ -87,7 +128,6 @@ export default function CheckoutPage() {
 
       if (addressError) throw addressError;
 
-      // 3. ایجاد سفارش (با وضعیت pending)
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert([{
@@ -101,7 +141,6 @@ export default function CheckoutPage() {
 
       if (orderError) throw orderError;
 
-      // 4. ایجاد آیتم‌های سفارش
       const orderItemsToInsert = cartItems.map(item => ({
         order_id: newOrder.id,
         product_id: item.product.id,
@@ -117,22 +156,19 @@ export default function CheckoutPage() {
 
       if (itemsError) throw itemsError;
 
-      // 5. آماده کردن اطلاعات برای ارسال به درگاه
       const callbackUrl = `${window.location.origin}/api/payment/callback`;
       const firstProductName = cartItems[0]?.product.name || 'محصولات منتخب';
       
-      // اطلاعات کاربر از فرم و اطلاعات لاگین شده
       const paymentData = {
         amount: cartTotal,
-        name: formData.full_name, // نام از فرم تکمیل اطلاعات
-        email: user.email || '', // ایمیل از کاربر لاگین کرده
-        phone: formData.phone, // شماره تماس از فرم
+        name: formData.full_name,
+        email: user.email || '',
+        phone: formData.phone,
         description: `خرید: ${firstProductName}`,
-        factorId: newOrder.id, // شناسه سفارش برای ذخیره trans_id
+        factorId: newOrder.id,
         redirectUrl: callbackUrl,
       };
 
-      // 6. تماس با API شروع پرداخت
       const bitpayResponse = await fetch('/api/payment/initiate-bitpay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,11 +181,11 @@ export default function CheckoutPage() {
         throw new Error(bitpayData.message || 'خطا در اتصال به درگاه پرداخت');
       }
 
-      // 7. هدایت کاربر به درگاه پرداخت
       window.location.href = bitpayData.bitpayRedirectUrl;
-
     
-    
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || 'خطایی رخ داد');
     } finally {
       setIsSubmitting(false);
     }
