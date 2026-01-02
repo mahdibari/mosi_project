@@ -4,11 +4,10 @@ import { useState, useEffect, Suspense } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { MapPin, Phone, User, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckCircle } from 'lucide-react';
+import { MapPin, Phone, User, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckCircle, X } from 'lucide-react';
 import { formatToToman } from '@/utils/formatPrice';
 import Image from 'next/image';
 
-// کامپوننت جداگانه برای محتوای اصلی که از useSearchParams استفاده می‌کند
 function CheckoutContent() {
   const { cartItems, cartTotal, clearCart, isLoading } = useCart();
   const router = useRouter();
@@ -16,12 +15,21 @@ function CheckoutContent() {
   
   const isSuccess = searchParams.get('status') === 'success';
 
-  // خالی کردن سبد خرید بعد از بازگشت موفق
+  // --- اضافه شده برای نوتیفیکیشن ---
+  const [showNotification, setShowNotification] = useState(false);
+
   useEffect(() => {
     if (isSuccess) {
       clearCart();
+      // نمایش نوتیفیکیشن برای 4 ثانیه
+      setShowNotification(true);
+      const timer = setTimeout(() => {
+        setShowNotification(false);
+      }, 4000);
+      return () => clearTimeout(timer);
     }
   }, [isSuccess]);
+  // ----------------------------------
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -51,16 +59,29 @@ function CheckoutContent() {
     },
   ];
 
-  // اگر کاربر از درگاه برنگشته و سبد خالی است -> برود به سبد خرید
   if (!isLoading && cartItems.length === 0 && !isSuccess) {
     router.push('/cart');
     return null;
   }
 
-  // --- نمایش پیام موفقیت ---
   if (isSuccess) {
     return (
-      <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center">
+      <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center relative">
+        {/* --- نوتیفیکیشن موفقیت --- */}
+        {showNotification && (
+          <div className="fixed bottom-5 left-1/2 transform -translate-x-1/2 md:left-auto md:right-5 md:translate-x-0 z-50 bg-green-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-bounce">
+            <CheckCircle className="w-6 h-6" />
+            <div>
+              <p className="font-bold text-sm">پرداخت موفقیت‌آمیز</p>
+              <p className="text-xs text-green-100">سفارش شما با موفقیت ثبت شد</p>
+            </div>
+            <button onClick={() => setShowNotification(false)} className="text-green-100 hover:text-white">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+        {/* -------------------------- */}
+
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10 max-w-lg w-full text-center border border-gray-100 dark:border-gray-700">
           <div className="w-20 h-20 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
@@ -79,7 +100,6 @@ function CheckoutContent() {
       </main>
     );
   }
-  // -------------------------
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -174,7 +194,6 @@ function CheckoutContent() {
         throw new Error(bitpayData.message || 'خطا در اتصال به درگاه پرداخت');
       }
 
-      // انتقال به درگاه
       window.location.href = bitpayData.bitpayRedirectUrl;
     
     } catch (error: any) {
@@ -211,7 +230,7 @@ function CheckoutContent() {
         <section className="lg:col-span-2">
           <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 space-y-6">
              <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">نام و نام خانوادگی</label>
+              <label className="block text-sm font-medium text-gray-700 dark:bg-gray-300 mb-2">نام و نام خانوادگی</label>
               <input type="text" name="full_name" value={formData.full_name} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
             </div>
             <div>
@@ -267,7 +286,6 @@ function CheckoutContent() {
   );
 }
 
-// کامپوننت اصلی که در Suspense پیچیده شده است
 export default function CheckoutPage() {
   return (
     <Suspense fallback={<div className="container mx-auto px-4 py-20 text-center">در حال بارگذاری صفحه پرداخت...</div>}>
