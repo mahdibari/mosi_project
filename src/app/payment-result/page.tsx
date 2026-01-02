@@ -1,41 +1,52 @@
-import Link from 'next/link';
+'use client';
 
-export default function PaymentResultPage({
-  searchParams,
-}: {
-  searchParams: { status?: string; ref?: string; msg?: string };
-}) {
-  const isSuccess = searchParams.status === 'success';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { CheckCircle, XCircle } from 'lucide-react';
+
+export default function PaymentResultPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  
+  const status = searchParams.get('status');
+  const ref = searchParams.get('ref');
+  const isSuccess = status === 'success';
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-      <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
+    <main className="container mx-auto px-4 py-20 min-h-[60vh] flex items-center justify-center">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-10 max-w-lg w-full text-center border border-gray-100 dark:border-gray-700">
+        
         {isSuccess ? (
           <>
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+            <div className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-12 h-12 text-green-600" />
             </div>
-            <h1 className="text-2xl font-bold text-green-600 mb-2">پرداخت موفق</h1>
-            <p className="text-gray-600 mb-6">سفارش شما با موفقیت ثبت شد.</p>
-            <div className="bg-gray-100 p-3 rounded-lg mb-6">
-              <span className="text-sm text-gray-500 block">کد پیگیری:</span>
-              <span className="font-mono text-lg font-bold">{searchParams.ref}</span>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">پرداخت موفقیت‌آمیز بود!</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              سفارش شما با شماره پیگیری <span className="font-mono font-bold text-indigo-600">{ref}</span> ثبت شد.
+            </p>
+            <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg text-green-800 dark:text-green-200 text-sm mb-8">
+               وضعیت سیستم: <span className="font-bold">SUCCESS</span>
             </div>
           </>
         ) : (
           <>
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+              <XCircle className="w-12 h-12 text-red-600" />
             </div>
-            <h1 className="text-2xl font-bold text-red-600 mb-2">پرداخت ناموفق</h1>
-            <p className="text-gray-600 mb-6">{searchParams.msg || 'مشکلی در پرداخت پیش آمد.'}</p>
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">پرداخت انجام نشد</h1>
+            <p className="text-gray-600 dark:text-gray-300 mb-8">
+              مشکلی در فرآیند پرداخت پیش آمد یا تراکنش توسط شما لغو شد.
+            </p>
           </>
         )}
-        
-        <Link href="/" className="block w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition">
+
+        <button 
+          onClick={() => router.push('/')}
+          className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all shadow-lg shadow-indigo-200 dark:shadow-none"
+        >
           بازگشت به خانه
-        </Link>
+        </button>
       </div>
-    </div>
+    </main>
   );
 }
