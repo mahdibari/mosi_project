@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { MapPin, Phone, User, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckCircle, X } from 'lucide-react';
+import { MapPin, Phone, User, ChevronDown, Truck, RefreshCcw, HelpCircle, CheckCircle, X, XCircle, RefreshCw as RetryIcon, AlertTriangle } from 'lucide-react';
 import { formatToToman } from '@/utils/formatPrice';
 import Image from 'next/image';
 
@@ -13,9 +13,11 @@ function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const isSuccess = searchParams.get('status') === 'success';
+  const status = searchParams.get('status');
+  const isSuccess = status === 'success';
+  const isFailed = status === 'failed';
 
-  // --- اضافه شده برای نوتیفیکیشن ---
+  // --- مدیریت نوتیفیکیشن و سبد خرید ---
   const [showNotification, setShowNotification] = useState(false);
 
   useEffect(() => {
@@ -59,11 +61,13 @@ function CheckoutContent() {
     },
   ];
 
-  if (!isLoading && cartItems.length === 0 && !isSuccess) {
+  // اگر سبد خالی است و وضعیت خاصی (موفقیت یا شکست) نداریم، کاربر را به سبد خرید برگردان
+  if (!isLoading && cartItems.length === 0 && !isSuccess && !isFailed) {
     router.push('/cart');
     return null;
   }
 
+  // --- نمایش وضعیت موفقیت آمیز ---
   if (isSuccess) {
     return (
       <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center relative">
@@ -82,20 +86,66 @@ function CheckoutContent() {
         )}
         {/* -------------------------- */}
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10 max-w-lg w-full text-center border border-gray-100 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10 max-w-lg w-full text-center border border-green-100 dark:border-green-900">
           <div className="w-20 h-20 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
           </div>
           <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">خریدتون موفقیت آمیز بود</h1>
-          <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed mb-8">
+          <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed mb-6">
             بزودی توسط ادمین های ما بررسی میگردد و مرسوله شما ارسال میشود.
           </p>
-          <button 
-            onClick={() => router.push('/')}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors"
-          >
-            بازگشت به فروشگاه
-          </button>
+          
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-8 text-sm text-green-800 dark:text-green-200">
+            وضعیت پرداخت در سیستم: <span className="font-bold">successful</span>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => router.push('/orders')}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors"
+            >
+              مشاهده سفارشات
+            </button>
+            <button 
+              onClick={() => router.push('/')}
+              className="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors"
+            >
+              بازگشت به فروشگاه
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // --- نمایش وضعیت شکست (Failed) ---
+  if (isFailed) {
+    return (
+      <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10 max-w-lg w-full text-center border border-red-100 dark:border-red-900">
+          <div className="w-20 h-20 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-6">
+            <XCircle className="w-12 h-12 text-red-600 dark:text-red-400" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">پرداخت ناموفق بود</h1>
+          <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed mb-8">
+            متاسفانه تراکنش شما با مشکل مواجه شد یا توسط شما لغو شده است.
+          </p>
+          
+          <div className="flex flex-col gap-3">
+            <button 
+              onClick={() => router.push('/cart')}
+              className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              <RetryIcon className="w-4 h-4" />
+              تلاش مجدد
+            </button>
+            <button 
+              onClick={() => router.push('/')}
+              className="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors"
+            >
+              بازگشت به فروشگاه
+            </button>
+          </div>
         </div>
       </main>
     );

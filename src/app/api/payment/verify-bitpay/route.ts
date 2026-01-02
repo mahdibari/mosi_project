@@ -34,19 +34,20 @@ export async function POST(request: Request) {
       if (orderId) {
         const supabase = supabaseServerClient();
         
-        // --- اینجا تغییرات اعمال شده ---
+        // --- آپدیت وضعیت در دیتابیس ---
         const { error: updateError } = await supabase
           .from('orders')
           .update({ 
-            status: 'paid',                  // وضعیت کلی سفارش
-            payment_status: 'success',       // وضعیت جزئی پرداخت (طبق درخواست شما)
-            trans_id: trans_id.toString()   // ذخیره شماره پیگیری درگاه
+            status: 'paid',                  // وضعیت کلی سفارش (پرداخت شده)
+            payment_status: 'successful',     // وضعیت جزئی پرداخت (موفقیت‌آمیز)
+            trans_id: trans_id.toString()    // ذخیره کد پیگیری
           })
           .eq('id', orderId);
         // -------------------------------
 
         if (updateError) {
           console.error('Error updating order:', updateError);
+          return NextResponse.json({ success: false, message: 'Database update failed' }, { status: 500 });
         }
 
         return NextResponse.json({ success: true, orderId });
