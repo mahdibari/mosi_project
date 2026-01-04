@@ -189,7 +189,14 @@ export default function ProductCard({ product }: { product: Product }) {
               <span className="text-[10px] font-bold text-gray-400">تومان</span>
             </div>
           </div>
-
+ {/* دکمه مشاهده جزئیات (جدید) */}
+            <Link 
+              href={`/products/${product.id}`}
+              className="p-3 lg:p-4 rounded-2xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all active:scale-95 flex items-center justify-center"
+              title="مشاهده جزئیات"
+            >
+              <Eye size={20} />
+            </Link>
           <button 
             onClick={handleAddToCart}
             disabled={isAddingToCart || product.stock_quantity <= 0}

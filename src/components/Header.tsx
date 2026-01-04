@@ -2,14 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ShoppingCart, Menu, X, HelpCircle, Truck } from 'lucide-react';
+import { 
+  ShoppingCart, 
+  Menu, 
+  X, 
+  HelpCircle, 
+  Truck, 
+  Instagram, 
+  MessageCircle // برای واتساپ
+} from 'lucide-react';
 import UserMenu from './UserMenu';
 import { useCart } from '@/contexts/CartContext';
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const { cartCount } = useCart(); 
+
+  // لینک‌های شبکه‌های اجتماعی - اینجا را تغییر بده
+  const socialLinks = {
+    instagram: "https://instagram.com/your-id",
+    whatsapp: "https://wa.me/989123456789"
+  };
 
   useEffect(() => {
     if (isMobileMenuOpen) {
@@ -24,60 +37,65 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-40 transition-colors duration-300">
+      {/* هدر ثابت با کلاس fixed */}
+      <header className="fixed top-0 left-0 right-0 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg shadow-sm z-[100] transition-all duration-300 border-b border-gray-100 dark:border-gray-700">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* بخش لوگو */}
-            <Link href="/" className="flex-shrink-0">
-              <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent transition-all duration-300 hover:from-indigo-700 hover:to-purple-700">
-                مصی شاپ 
-              </span>
-            </Link>
+          <div className="flex justify-between items-center h-20"> {/* ارتفاع کمی بیشتر برای زیبایی */}
+            
+            {/* بخش راست: لوگو و شبکه‌های اجتماعی دسکتاپ */}
+            <div className="flex items-center gap-6">
+              <Link href="/" className="flex-shrink-0">
+                <span className="text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hover:scale-105 transition-transform inline-block">
+                  مصی شاپ 
+                </span>
+              </Link>
 
-            {/* منوی ناوبری دسکتاپ */}
-            <nav className="hidden md:flex items-center space-x-8 space-x-reverse">
-              <Link href="/" className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 font-medium transition-colors">خانه</Link>
-              <Link href="/products" className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 font-medium transition-colors">محصولات</Link>
-              <Link href="/about" className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 font-medium transition-colors">درباره ما</Link>
-              <Link href="/contact" className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 font-medium transition-colors">تماس با ما</Link>
+              {/* آیکون‌های اجتماعی دسکتاپ */}
+              <div className="hidden lg:flex items-center gap-3 border-r pr-6 border-gray-200 dark:border-gray-700">
+                <a href={socialLinks.instagram} target="_blank" className="text-pink-600 hover:scale-110 transition-transform">
+                  <Instagram size={20} />
+                </a>
+                <a href={socialLinks.whatsapp} target="_blank" className="text-green-600 hover:scale-110 transition-transform">
+                  <MessageCircle size={20} />
+                </a>
+              </div>
+            </div>
+
+            {/* منوی ناوبری وسط */}
+            <nav className="hidden md:flex items-center gap-8 font-bold text-sm">
+              <Link href="/" className="text-gray-600 dark:text-gray-300 hover:text-indigo-600 transition-colors">خانه</Link>
+              <Link href="/products" className="text-gray-600 dark:text-gray-300 hover:text-indigo-600 transition-colors">محصولات</Link>
+              <Link href="/about" className="text-gray-600 dark:text-gray-300 hover:text-indigo-600 transition-colors">درباره ما</Link>
+              <Link href="/contact" className="text-gray-600 dark:text-gray-300 hover:text-indigo-600 transition-colors">تماس با ما</Link>
             </nav>
 
-            {/* بخش سمت چپ هدر (دکمه‌ها) */}
+            {/* بخش چپ: دکمه‌ها */}
             <div className="flex items-center gap-2 sm:gap-4">
               
-              {/* دکمه پیگیری سفارش - نسخه دسکتاپ */}
               <Link 
                 href="/track-order" 
-                className="hidden sm:flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 px-3 py-2 rounded-xl hover:bg-indigo-100 transition-all text-sm font-bold border border-indigo-100 dark:border-indigo-800"
+                className="hidden sm:flex items-center gap-2 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-300 px-4 py-2.5 rounded-2xl hover:bg-indigo-50 hover:text-indigo-600 transition-all text-xs font-black border border-gray-100 dark:border-gray-700"
               >
-                <Truck size={18} />
+                <Truck size={16} />
                 <span>پیگیری سفارش</span>
               </Link>
 
-              {/* آیکون تیکت/پشتیبانی */}
-              <Link href="/tickets" className="p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors">
-                <HelpCircle className="w-6 h-6" />
+              <Link href="/cart" className="relative p-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-2xl group transition-all hover:bg-indigo-600 hover:text-white">
+                <ShoppingCart className="w-5 h-5" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white group-hover:border-indigo-600 transition-colors">
+                    {cartCount}
+                  </span>
+                )}
               </Link>
 
-              {/* سبد خرید */}
-             <Link href="/cart" className="relative p-2 text-gray-600 hover:text-indigo-600 transition-colors group">
-  <ShoppingCart className="w-6 h-6" />
-  {cartCount > 0 && (
-    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white animate-in zoom-in duration-300 shadow-sm">
-      {cartCount}
-    </span>
-  )}
-</Link>
-
-              {/* پروفایل کاربر */}
               <div className="hidden md:block">
                 <UserMenu />
               </div>
 
-              {/* دکمه منوی موبایل */}
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="md:hidden p-2 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="md:hidden p-2.5 rounded-2xl bg-gray-50 text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <Menu className="w-6 h-6" />
               </button>
@@ -86,37 +104,45 @@ export default function Header() {
         </div>
       </header>
 
-      {/* منوی کشویی موبایل */}
+      {/* Spacer: برای اینکه محتوا زیر هدر ثابت نرود */}
+      <div className="h-20"></div>
+
+      {/* منوی موبایل */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
-          <div className="fixed top-0 right-0 h-full w-72 bg-white dark:bg-gray-800 shadow-2xl transform transition-transform duration-300">
+        <div className="fixed inset-0 z-[110] md:hidden">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)}></div>
+          <div className="fixed top-0 right-0 h-full w-80 bg-white dark:bg-gray-900 shadow-2xl animate-in slide-in-from-right duration-300">
             <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between p-5 border-b dark:border-gray-700">
-                <span className="text-xl font-bold text-indigo-600">منوی اصلی</span>
-                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
+              <div className="flex items-center justify-between p-6 border-b dark:border-gray-800">
+                <span className="text-xl font-black text-indigo-600">فهرست</span>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-gray-50 rounded-xl">
                   <X className="w-6 h-6" />
                 </button>
               </div>
               
-              <nav className="flex-1 px-4 py-6 space-y-2">
-                {/* دکمه پیگیری سفارش در موبایل (بسیار مهم) */}
-                <Link 
-                  href="/track-order" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-3 p-4 bg-indigo-600 text-white rounded-2xl shadow-lg shadow-indigo-200 mb-6 font-bold"
-                >
-                  <Truck size={22} />
-                  <span>پیگیری سفارشات</span>
+              <nav className="flex-1 px-6 py-8 space-y-4">
+                <Link href="/track-order" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 p-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100">
+                  <Truck size={20} /> پیگیری سفارشات
                 </Link>
 
-                <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="block p-4 text-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors">خانه</Link>
-                <Link href="/products" onClick={() => setIsMobileMenuOpen(false)} className="block p-4 text-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors">محصولات</Link>
-                <Link href="/about" onClick={() => setIsMobileMenuOpen(false)} className="block p-4 text-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors">درباره ما</Link>
-                <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)} className="block p-4 text-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors">تماس با ما</Link>
+                <div className="space-y-1">
+                   <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="block p-4 font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 rounded-xl">خانه</Link>
+                   <Link href="/products" onClick={() => setIsMobileMenuOpen(false)} className="block p-4 font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 rounded-xl">محصولات</Link>
+                   <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)} className="block p-4 font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 rounded-xl">تماس با ما</Link>
+                </div>
+
+                {/* شبکه‌های اجتماعی در موبایل */}
+                <div className="pt-6 flex gap-4 border-t dark:border-gray-800">
+                  <a href={socialLinks.instagram} className="flex-1 flex items-center justify-center gap-2 py-3 bg-pink-50 text-pink-600 rounded-xl font-bold">
+                    <Instagram size={18} /> اینستاگرام
+                  </a>
+                  <a href={socialLinks.whatsapp} className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-50 text-green-600 rounded-xl font-bold">
+                    <MessageCircle size={18} /> واتساپ
+                  </a>
+                </div>
               </nav>
 
-              <div className="p-6 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+              <div className="p-6 bg-gray-50 dark:bg-gray-800/50 border-t dark:border-gray-800">
                 <UserMenu />
               </div>
             </div>

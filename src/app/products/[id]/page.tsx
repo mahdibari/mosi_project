@@ -1,8 +1,6 @@
-// File: app/products/[id]/page.tsx
-
 'use client';
 
-import { useState, useEffect, } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
@@ -24,20 +22,16 @@ import {
   RefreshCw,
   Minus,
   Plus,
-  
-  
   Info,
   ChevronLeft,
-  
   Percent,
-  
   Award,
   TrendingUp,
   User as UserIcon,
   X
 } from 'lucide-react';
 
-// به‌روزرسانی اینترفیس‌ها برای مطابقت با دیتابیس
+// به‌روزرسانی اینترفیس Product برای شامل کردن دو عکس اضافی
 interface Product {
   id: string;
   name: string;
@@ -46,6 +40,8 @@ interface Product {
   discount_percentage: number | null;
   stock_quantity: number;
   image_url: string | null;
+  image_url_2: string | null; // اضافه شده
+  image_url_3: string | null; // اضافه شده
   average_rating: number;
   total_reviews: number;
   total_likes: number;
@@ -107,8 +103,6 @@ export default function ProductDetailPage() {
   const [comment, setComment] = useState('');
   const [showReviewForm, setShowReviewForm] = useState(false);
 
-  
-
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -121,15 +115,17 @@ export default function ProductDetailPage() {
     }
   }, [productId]);
 
+  // ریست کردن ایندکس عکس وقتی محصول تغییر می‌کند
+  useEffect(() => {
+    setActiveImageIndex(0);
+  }, [product]);
+
   const fetchProductDetails = async (id: string) => {
     try {
-      // Fetch product details with category
+      // دریافت تمام ستون‌ها شامل عکس‌های جدید
       const { data: productData, error: productError } = await supabase
         .from('products')
-        .select(`
-          *,
-          categories(id, name, slug)
-        `)
+        .select(`*`)
         .eq('id', id)
         .single();
 
@@ -143,7 +139,7 @@ export default function ProductDetailPage() {
           .select('*')
           .eq('product_id', id)
           .eq('user_id', user.id)
-          .maybeSingle(); // Use maybeSingle to avoid error if no record found
+          .maybeSingle();
         
         setIsLiked(!!likeData);
       }
@@ -166,7 +162,7 @@ export default function ProductDetailPage() {
       }));
       setReviews(transformedReviews || []);
       
-      // Fetch related products from the same category
+      // Fetch related products
       if (productData.category_id) {
         const { data: relatedData } = await supabase
           .from('products')
@@ -235,13 +231,11 @@ export default function ProductDetailPage() {
     const originalIsLiked = isLiked;
     const originalLikesCount = product.total_likes;
 
-    // Optimistic UI update
     setIsLiked(!originalIsLiked);
     setProduct(prev => prev ? { ...prev, total_likes: originalIsLiked ? prev.total_likes - 1 : prev.total_likes + 1 } : null);
 
     try {
       if (originalIsLiked) {
-        // Unlike the product
         const { error } = await supabase
           .from('product_likes')
           .delete()
@@ -249,14 +243,12 @@ export default function ProductDetailPage() {
           .eq('user_id', user.id);
         if (error) throw error;
       } else {
-        // Like the product
         const { error } = await supabase
           .from('product_likes')
           .insert({ product_id: product.id, user_id: user.id });
         if (error) throw error;
       }
   
-      // Revert UI on error
       setIsLiked(originalIsLiked);
       setProduct(prev => prev ? { ...prev, total_likes: originalLikesCount } : null);
       
@@ -348,7 +340,21 @@ export default function ProductDetailPage() {
 
   const finalPrice = product.price * (1 - (product.discount_percentage || 0) / 100);
   const isInStock = product.stock_quantity > 0;
-  const productImages = [product.image_url]; // In a real app, you'd have multiple images
+
+  // --- منطق جدید برای مدیریت چند عکس ---
+  // ایجاد آرایه‌ای از تمام عکس‌های موجود و حذف مقادیر null
+  const allImages = [
+    product.image_url,
+    product.image_url_2,
+    product.image_url_3
+  ].filter((img): img is string => img !== null);
+
+  // اگر هیچ عکسی نبود، یک تصویر پیش‌فرض قرار بده
+  const displayImages = allImages.length > 0 ? allImages : ['https://via.placeholder.com/600x600'];
+  
+  // اطمینان از اینکه ایندکس خارج از محدوده نیست
+  const safeActiveIndex = Math.min(activeImageIndex, displayImages.length - 1);
+  const currentImage = displayImages[safeActiveIndex] || displayImages[0];
 
   return (
     <div className="bg-gradient-to-b from-gray-50 to-white min-h-screen">
@@ -389,7 +395,7 @@ export default function ProductDetailPage() {
             <div className="bg-white p-4 rounded-2xl shadow-xl">
               <div className="aspect-square relative overflow-hidden rounded-xl">
                 <Image 
-                  src={productImages[activeImageIndex] || 'https://via.placeholder.com/600x600'} 
+                  src={currentImage} 
                   alt={product.name}
                   fill
                   className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -404,12 +410,17 @@ export default function ProductDetailPage() {
                 </div>
               </div>
             </div>
-             {/* Image thumbnails - placeholder for future use */}
-            {productImages.length > 1 && (
-              <div className="flex gap-2 p-2 overflow-x-auto">
-                {productImages.map((image, index) => (
-                  <button key={index} onClick={() => setActiveImageIndex(index)} className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 ${activeImageIndex === index ? 'border-indigo-500' : 'border-gray-200'}`}>
-                    <Image src={image || 'https://via.placeholder.com/100x100'} alt={`${product.name} ${index + 1}`} width={80} height={80} className="w-full h-full object-cover" />
+             {/* Image thumbnails */}
+             {/* اگر بیشتر از یک عکس وجود داشت، لیست بندانگشتی را نمایش بده */}
+            {displayImages.length > 1 && (
+              <div className="flex gap-2 p-2 overflow-x-auto justify-start lg:justify-center">
+                {displayImages.map((image, index) => (
+                  <button 
+                    key={index} 
+                    onClick={() => setActiveImageIndex(index)} 
+                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${safeActiveIndex === index ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <Image src={image} alt={`${product.name} ${index + 1}`} width={80} height={80} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
