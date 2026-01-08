@@ -163,32 +163,41 @@ function CheckoutContent() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSubmitting(true);
 
     try {
-      // 1. دریافت وضعیت کاربر (اصلاح شده برای ESLint)
+      // 1. دریافت وضعیت کاربر
       const { data, error: userError } = await supabase.auth.getUser();
-      let user = data.user; // let است چون بعداً ریست می‌شود
+      let user = data.user;
       
-      // 2. اگر کاربر لاگین نیست، ثبت نام ناشناس انجام می‌شود
+      // 2. اگر کاربر لاگین نیست، تلاش برای ثبت مهمان
       if (!user || userError) {
+        
+        // --- مهم: پاک کردن سشن‌های قدیمی برای جلوگیری از تداخل ---
+        await supabase.auth.signOut();
+
         const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
+        
+        // --- دیباگ: چاپ خطای واقعی در کنسول (فقط برای شما) ---
         if (anonError) {
-          throw new Error("امکان ثبت سفارش مهمان وجود ندارد. لطفا وارد شوید.");
+          console.error("خطای اصلی ساپابیس:", anonError); 
+          // حالا متن واقعی خطای ساپابیس را به کاربر نشان بده
+          throw new Error(`خطای سیستم: ${anonError.message}`);
         }
-        user = anonData.user; // مقداردهی مجدد
+        
+        user = anonData.user;
       }
 
-      // 3. اطمینان از وجود کاربر (اصلاح شده برای TypeScript)
+      // چک کردن وجود کاربر (امنیت تایپ‌اسکریپت)
       if (!user) {
         throw new Error("خطا در شناسایی کاربر. لطفاً صفحه را رفرش کنید.");
       }
 
-      // 4. ثبت آدرس
+      // 3. ثبت آدرس
       const { data: newAddress, error: addressError } = await supabase
         .from('addresses')
         .insert([{ 
@@ -200,7 +209,7 @@ function CheckoutContent() {
 
       if (addressError) throw addressError;
 
-      // 5. ثبت سفارش
+      // 4. ثبت سفارش
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert([{
@@ -214,7 +223,7 @@ function CheckoutContent() {
 
       if (orderError) throw orderError;
 
-      // 6. ثبت آیتم‌های سفارش
+      // 5. ثبت آیتم‌های سفارش
       const orderItemsToInsert = cartItems.map(item => ({
         order_id: newOrder.id,
         product_id: item.product.id,
@@ -230,14 +239,14 @@ function CheckoutContent() {
 
       if (itemsError) throw itemsError;
 
-      // 7. درخواست پرداخت
+      // 6. درخواست پرداخت
       const callbackUrl = `${window.location.origin}/api/payment/callback`;
       const firstProductName = cartItems[0]?.product.name || 'محصولات منتخب';
       
       const paymentData = {
         amount: cartTotal,
         name: formData.full_name,
-        email: user.email || 'guest@example.com', // ایمیل کاربر یا مهمان
+        email: user.email || 'guest@example.com', 
         phone: formData.phone,
         description: `خرید: ${firstProductName}`,
         factorId: newOrder.id,
