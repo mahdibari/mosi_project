@@ -140,19 +140,17 @@ function CheckoutContent() {
       </main>
     );
   }
-const toEnglishDigits = (str: string) => {
-  return str.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString())
-            .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
-};
+  // تابع تبدیل اعداد فارسی به انگلیسی
+  const toEnglishDigits = (str: string) => {
+    return str.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString())
+              .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
+  };
 
- const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
-    // تبدیل خودکار اعداد فارسی به انگلیسی در فیلدهای حساس
     const processedValue = (name === 'phone' || name === 'postal_code') 
       ? toEnglishDigits(value) 
       : value;
-    
     setFormData(prev => ({ ...prev, [name]: processedValue }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
@@ -171,57 +169,59 @@ const toEnglishDigits = (str: string) => {
     return Object.keys(newErrors).length === 0;
   };
 
-     const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsSubmitting(true);
 
     try {
+      console.log('1. شروع فرآیند پرداخت...');
+
       // 1. دریافت وضعیت کاربر
       const { data, error: userError } = await supabase.auth.getUser();
       let user = data.user;
       
       // 2. اگر کاربر لاگین نیست، ثبت نام ناشناس انجام می‌شود
       if (!user || userError) {
-        await supabase.auth.signOut(); // پاکسازی سشن قبلی
+        console.log('2. کاربر یافت نشد، در حال تلاش برای ورود ناشناس...');
+        await supabase.auth.signOut(); 
         const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
         
         if (anonError) {
-          console.error("خطای اصلی ساپابیس:", anonError);
-          throw new Error(`خطای سیستم: ${anonError.message}`);
+          console.error("خطا در ورود ناشناس:", anonError);
+          throw new Error(`خطا در سیستم احراز هویت: ${anonError.message}`);
         }
-        user = anonData.user;
+        // خطایحل شده: اگر anonData.user موجود باشد آن را اختصاص می‌دهیم
+        user = anonData.user || null; 
+        console.log('2.1. ورود ناشناس موفقیت آمیز بود:', user?.id);
       }
 
-      // 3. اطمینان از وجود کاربر
       if (!user) {
         throw new Error("خطا در شناسایی کاربر. لطفاً صفحه را رفرش کنید.");
       }
 
-      // --- بسیار مهم: ساخت کاربر در جدول public.users ---
-      // چون ترایگر را حذف کردیم، باید خودمان مطمئن شویم کاربر در public.users وجود دارد
-      // تا foreign key های addresses و orders بتوانند به آن اشاره کنند
+      // 3. ساخت کاربر در جدول public.users
+      // خطایحل شده: استفاده از user!.id و user!.email برای اطمینان تایپ اسکریپت
+      console.log('3. به‌روزرسانی پروفایل کاربر در دیتابیس...');
       const { error: publicUserError } = await supabase
-        .from('users') // توجه: نام جدول شما users است نه profiles
+        .from('users')
         .upsert({ 
-            id: user.id, 
-            email: user.email || 'guest@example.com' 
+            id: user!.id, 
+            email: user!.email || 'guest@example.com' 
         }, { onConflict: 'id' });
 
       if (publicUserError) {
-        console.error("خطا در ساخت پروفایل در public.users:", publicUserError);
-        // اگر اینجا ارور داد، یعنی اجازه درج در جدول users را به anon نداده‌اید
-        // اما فرمول ادامه پیدا می‌کند تا اگر قبلاً رکورد بوده خطا ندهد
+        console.error("خطای پروفایل:", publicUserError);
       }
-      // -------------------------------------------------
 
       // 4. ثبت آدرس
+      console.log('4. ثبت آدرس...');
       const { data: newAddress, error: addressError } = await supabase
         .from('addresses')
         .insert([{ 
           ...formData, 
-          user_id: user.id 
+          user_id: user!.id  // خطایحل شده
         }])
         .select()
         .single();
@@ -229,10 +229,11 @@ const toEnglishDigits = (str: string) => {
       if (addressError) throw addressError;
 
       // 5. ثبت سفارش
+      console.log('5. ثبت سفارش اصلی...');
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert([{
-          user_id: user.id,
+          user_id: user!.id, // خطایحل شده
           address_id: newAddress.id,
           total_amount: cartTotal,
           status: 'pending',
@@ -243,6 +244,7 @@ const toEnglishDigits = (str: string) => {
       if (orderError) throw orderError;
 
       // 6. ثبت آیتم‌های سفارش
+      console.log('6. ثبت آیتم‌ها...');
       const orderItemsToInsert = cartItems.map(item => ({
         order_id: newOrder.id,
         product_id: item.product.id,
@@ -259,41 +261,54 @@ const toEnglishDigits = (str: string) => {
       if (itemsError) throw itemsError;
 
       // 7. درخواست پرداخت
+      console.log('7. اتصال به درگاه پرداخت...');
       const callbackUrl = `${window.location.origin}/api/payment/callback`;
       const firstProductName = cartItems[0]?.product.name || 'محصولات منتخب';
       
       const paymentData = {
         amount: cartTotal,
         name: formData.full_name,
-        email: user.email || 'guest@example.com', 
+        email: user!.email || 'guest@example.com', // خطایحل شده
         phone: formData.phone,
         description: `خرید: ${firstProductName}`,
         factorId: newOrder.id,
         redirectUrl: callbackUrl,
       };
 
+      // کنترل تایم‌اوت
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); 
+
       const bitpayResponse = await fetch('/api/payment/initiate-bitpay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(paymentData),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       const bitpayData = await bitpayResponse.json();
 
       if (!bitpayResponse.ok || !bitpayData.success) {
+        console.error('خطای درگاه:', bitpayData);
         throw new Error(bitpayData.message || 'خطا در اتصال به درگاه پرداخت');
       }
 
+      console.log('8. انتقال به بانک...');
       window.location.href = bitpayData.bitpayRedirectUrl;
     
     } catch (error: any) {
-      console.error(error);
-      alert(error.message || 'خطایی رخ داد');
+      console.error('خطای نهایی در چک‌اوت:', error);
+      let msg = error.message || 'خطایی رخ داد';
+      if (error.name === 'AbortError') {
+        msg = 'زمان اتصال به درگاه پرداخت تمام شد (Timeout). لطفاً اینترنت خود را بررسی کنید و دوباره تلاش کنید.';
+      }
+      alert(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
-
   if (isLoading) return <div className="p-10 text-center">در حال بارگذاری...</div>;
 
   return (
