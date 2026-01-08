@@ -4,9 +4,23 @@ import { useState, useEffect, Suspense } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { MapPin, Phone, User, ChevronDown, Truck, RefreshCcw, CheckCircle, X, XCircle, RefreshCw as RetryIcon, AlertTriangle } from 'lucide-react';
+import { 
+  MapPin, 
+  Phone, 
+  User, 
+  CreditCard, 
+  Truck, 
+  ShieldCheck, 
+  AlertCircle
+} from 'lucide-react';
 import { formatToToman } from '@/utils/formatPrice';
 import Image from 'next/image';
+
+// تابع تبدیل اعداد
+const toEnglishDigits = (str: string) => {
+  return str.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString())
+            .replace(/[٠-٩]/g, (d) => '٠١٢٣٤۵٦٧۸٩'.indexOf(d).toString());
+};
 
 function CheckoutContent() {
   const { cartItems, cartTotal, clearCart, isLoading } = useCart();
@@ -15,18 +29,6 @@ function CheckoutContent() {
   
   const status = searchParams.get('status');
   const isSuccess = status === 'success';
-  const isFailed = status === 'failed';
-
-  const [showNotification, setShowNotification] = useState(false);
-
-  useEffect(() => {
-    if (isSuccess) {
-      clearCart();
-      setShowNotification(true);
-      const timer = setTimeout(() => setShowNotification(false), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [isSuccess, clearCart]);
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -34,123 +36,22 @@ function CheckoutContent() {
     address: '',
     postal_code: '',
   });
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [activeInfoBox, setActiveInfoBox] = useState<number | null>(0);
 
-  const infoBoxes = [
-    {
-      icon: <AlertTriangle className="w-5 h-5" />,
-      title: 'نحوه ثبت سفارش',
-      content: 'پس از تکمیل اطلاعات، روی دکمه ثبت سفارش کلیک کنید.',
-    },
-    {
-      icon: <Truck className="w-5 h-5" />,
-      title: 'زمان ارسال',
-      content: 'سفارش‌ها پس از پرداخت موفق ثبت و ارسال می‌شوند.',
-    },
-    {
-      icon: <RefreshCcw className="w-5 h-5" />,
-      title: ' فیلتر شکن',
-      content: 'فیلتر شکن خود را برای ثبت خرید خاموش کنید',
-    },
-  ];
-
-  if (!isLoading && cartItems.length === 0 && !isSuccess && !isFailed) {
-    router.push('/cart');
-    return null;
-  }
-
-  if (isSuccess) {
-    return (
-      <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center relative">
-        {showNotification && (
-          <div className="fixed bottom-5 left-1/2 transform -translate-x-1/2 md:left-auto md:right-5 md:translate-x-0 z-50 bg-green-600 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-bounce">
-            <CheckCircle className="w-6 h-6" />
-            <div>
-              <p className="font-bold text-sm">پرداخت موفقیت‌آمیز</p>
-              <p className="text-xs text-green-100">سفارش شما با موفقیت ثبت شد</p>
-            </div>
-            <button onClick={() => setShowNotification(false)} className="text-green-100 hover:text-white">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        )}
-
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10 max-w-lg w-full text-center border border-green-100 dark:border-green-900">
-          <div className="w-20 h-20 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-12 h-12 text-green-600 dark:text-green-400" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">خریدتون موفقیت آمیز بود</h1>
-          <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed mb-6">
-            بزودی توسط ادمین های ما بررسی میگردد و مرسوله شما ارسال میشود.
-          </p>
-          
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-8 text-sm text-green-800 dark:text-green-200">
-            وضعیت پرداخت در سیستم: <span className="font-bold">successful</span>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <button 
-              onClick={() => router.push('/orders')}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors"
-            >
-              مشاهده سفارشات
-            </button>
-            <button 
-              onClick={() => router.push('/')}
-              className="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors"
-            >
-              بازگشت به فروشگاه
-            </button>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  if (isFailed) {
-    return (
-      <main className="container mx-auto px-4 py-16 min-h-[60vh] flex items-center justify-center">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10 max-w-lg w-full text-center border border-red-100 dark:border-red-900">
-          <div className="w-20 h-20 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-6">
-            <XCircle className="w-12 h-12 text-red-600 dark:text-red-400" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">پرداخت ناموفق بود</h1>
-          <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed mb-8">
-            متاسفانه تراکنش شما با مشکل مواجه شد یا توسط شما لغو شده است.
-          </p>
-          
-          <div className="flex flex-col gap-3">
-            <button 
-              onClick={() => router.push('/cart')}
-              className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              <RetryIcon className="w-4 h-4" />
-              تلاش مجدد
-            </button>
-            <button 
-              onClick={() => router.push('/')}
-              className="w-full py-3 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 text-gray-700 dark:text-gray-300 rounded-xl font-medium transition-colors"
-            >
-              بازگشت به فروشگاه
-            </button>
-          </div>
-        </div>
-      </main>
-    );
-  }
-  // تابع تبدیل اعداد فارسی به انگلیسی
-  const toEnglishDigits = (str: string) => {
-    return str.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString())
-              .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
-  };
+  useEffect(() => {
+    if (isSuccess) {
+      clearCart();
+    }
+  }, [isSuccess, clearCart]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     const processedValue = (name === 'phone' || name === 'postal_code') 
       ? toEnglishDigits(value) 
       : value;
+    
     setFormData(prev => ({ ...prev, [name]: processedValue }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
@@ -158,13 +59,12 @@ function CheckoutContent() {
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
     const phoneRegex = /^09[0-9]{9}$/;
-    if (!phoneRegex.test(formData.phone)) {
-      newErrors.phone = 'شماره موبایل نامعتبر است.';
-    }
-    const postalCodeRegex = /^\d{10}$/;
-    if (!postalCodeRegex.test(formData.postal_code)) {
-      newErrors.postal_code = 'کد پستی ۱۰ رقمی است.';
-    }
+    
+    if (!formData.full_name.trim()) newErrors.full_name = 'نام الزامی است';
+    if (!phoneRegex.test(formData.phone)) newErrors.phone = 'شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود';
+    if (formData.postal_code.length !== 10) newErrors.postal_code = 'کد پستی باید دقیقاً ۱۰ رقم باشد';
+    if (formData.address.length < 10) newErrors.address = 'لطفاً آدرس دقیق‌تری وارد کنید';
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -176,76 +76,69 @@ function CheckoutContent() {
     setIsSubmitting(true);
 
     try {
-      console.log('1. شروع فرآیند پرداخت...');
+      console.log('1. بررسی وضعیت کاربر...');
 
-      // 1. دریافت وضعیت کاربر
-      const { data, error: userError } = await supabase.auth.getUser();
-      let user = data.user;
+      // 1. دریافت سشن فعلی
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      // 2. اگر کاربر لاگین نیست، ثبت نام ناشناس انجام می‌شود
-      if (!user || userError) {
-        console.log('2. کاربر یافت نشد، در حال تلاش برای ورود ناشناس...');
-        await supabase.auth.signOut(); 
+      let userId: string | undefined;
+
+      // 2. منطق خرید مهمان (اصلاحیه اصلی اینجا است)
+      if (session && session.user) {
+        // اگر قبلا لاگین است
+        userId = session.user.id;
+        console.log('1.1. کاربر لاگین است:', userId);
+      } else {
+        // اگر لاگین نیست -> لاگین ناشناس انجام شود (بدون ریدایرکت)
+        console.log('1.2. کاربر مهمان است، در حال ایجاد سشن ناشناس...');
         const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
         
-        if (anonError) {
+        if (anonError || !anonData.user) {
           console.error("خطا در ورود ناشناس:", anonError);
-          throw new Error(`خطا در سیستم احراز هویت: ${anonError.message}`);
+          throw new Error('مشکلی در سیستم ثبت سفارش پیش آمد. لطفا صفحه را رفرش کنید.');
         }
-        // خطایحل شده: اگر anonData.user موجود باشد آن را اختصاص می‌دهیم
-        user = anonData.user || null; 
-        console.log('2.1. ورود ناشناس موفقیت آمیز بود:', user?.id);
+        userId = anonData.user.id;
+        console.log('1.3. سشن ناشناس ساخته شد:', userId);
       }
 
-      if (!user) {
-        throw new Error("خطا در شناسایی کاربر. لطفاً صفحه را رفرش کنید.");
+      if (!userId) {
+        throw new Error("شناسه کاربر پیدا نشد.");
       }
 
-      // 3. ساخت کاربر در جدول public.users
-      // خطایحل شده: استفاده از user!.id و user!.email برای اطمینان تایپ اسکریپت
-      console.log('3. به‌روزرسانی پروفایل کاربر در دیتابیس...');
-      const { error: publicUserError } = await supabase
-        .from('users')
-        .upsert({ 
-            id: user!.id, 
-            email: user!.email || 'guest@example.com' 
-        }, { onConflict: 'id' });
-
-      if (publicUserError) {
-        console.error("خطای پروفایل:", publicUserError);
-      }
-
-      // 4. ثبت آدرس
-      console.log('4. ثبت آدرس...');
+      // 3. ثبت آدرس
+      console.log('2. ثبت آدرس...');
       const { data: newAddress, error: addressError } = await supabase
         .from('addresses')
-        .insert([{ 
-          ...formData, 
-          user_id: user!.id  // خطایحل شده
-        }])
+        .insert([{ ...formData, user_id: userId }])
         .select()
         .single();
 
-      if (addressError) throw addressError;
+      if (addressError) {
+        console.error('خطای آدرس:', addressError);
+        throw new Error('خطا در ثبت آدرس');
+      }
 
-      // 5. ثبت سفارش
-      console.log('5. ثبت سفارش اصلی...');
+      // 4. ثبت سفارش
+      console.log('3. ثبت سفارش...');
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert([{
-          user_id: user!.id, // خطایحل شده
+          user_id: userId,
           address_id: newAddress.id,
-          total_amount: cartTotal,
+          total_amount: cartTotal, 
           status: 'pending',
         }])
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('خطای سفارش:', orderError);
+        throw new Error('خطا در ایجاد سفارش');
+      }
 
-      // 6. ثبت آیتم‌های سفارش
-      console.log('6. ثبت آیتم‌ها...');
-      const orderItemsToInsert = cartItems.map(item => ({
+      // 5. ثبت محصولات سفارش
+      console.log('4. ثبت آیتم‌ها...');
+      const orderItems = cartItems.map(item => ({
         order_id: newOrder.id,
         product_id: item.product.id,
         quantity: item.quantity,
@@ -254,138 +147,176 @@ function CheckoutContent() {
           : item.product.price,
       }));
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItemsToInsert);
-
+      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
       if (itemsError) throw itemsError;
 
-      // 7. درخواست پرداخت
-      console.log('7. اتصال به درگاه پرداخت...');
-      const callbackUrl = `${window.location.origin}/api/payment/callback`;
-      const firstProductName = cartItems[0]?.product.name || 'محصولات منتخب';
+      // 6. ارسال به درگاه پرداخت (با Timeout برای جلوگیری از هنگ کردن موبایل)
+      console.log('5. انتقال به درگاه...');
       
       const paymentData = {
         amount: cartTotal,
         name: formData.full_name,
-        email: user!.email || 'guest@example.com', // خطایحل شده
         phone: formData.phone,
-        description: `خرید: ${firstProductName}`,
+        description: `سفارش ${newOrder.id}`,
         factorId: newOrder.id,
-        redirectUrl: callbackUrl,
+        redirectUrl: `${window.location.origin}/api/payment/callback`,
       };
 
-      // کنترل تایم‌اوت
+      // اضافه شده: کنترل تایم‌اوت برای موبایل
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); 
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 ثانیه مهلت
 
-      const bitpayResponse = await fetch('/api/payment/initiate-bitpay', {
+      const response = await fetch('/api/payment/initiate-bitpay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(paymentData),
         signal: controller.signal
       });
-      
-      clearTimeout(timeoutId);
 
-      const bitpayData = await bitpayResponse.json();
+      clearTimeout(timeoutId); // پاک کردن تایمر اگر پاسخ سریع آمد
 
-      if (!bitpayResponse.ok || !bitpayData.success) {
-        console.error('خطای درگاه:', bitpayData);
-        throw new Error(bitpayData.message || 'خطا در اتصال به درگاه پرداخت');
+      if (!response.ok) {
+        throw new Error('پاسخی از سرور دریافت نشد. لطفا اینترنت خود را چک کنید.');
       }
 
-      console.log('8. انتقال به بانک...');
-      window.location.href = bitpayData.bitpayRedirectUrl;
+      const result = await response.json();
+
+      if (result.success && result.bitpayRedirectUrl) {
+        window.location.href = result.bitpayRedirectUrl;
+      } else {
+        throw new Error(result.message || 'خطا در اتصال به درگاه');
+      }
     
     } catch (error: any) {
-      console.error('خطای نهایی در چک‌اوت:', error);
-      let msg = error.message || 'خطایی رخ داد';
+      console.error('خطای نهایی:', error);
+      let msg = 'مشکلی پیش آمد، لطفاً دوباره تلاش کنید.';
       if (error.name === 'AbortError') {
-        msg = 'زمان اتصال به درگاه پرداخت تمام شد (Timeout). لطفاً اینترنت خود را بررسی کنید و دوباره تلاش کنید.';
+        msg = 'اتصال به درگاه زمان زیادی برد (Timeout). لطفا اتصال اینترنت خود را چک کنید.';
+      } else if (error.message) {
+        msg = error.message;
       }
       alert(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
-  if (isLoading) return <div className="p-10 text-center">در حال بارگذاری...</div>;
+
+  if (isLoading) return <div className="text-center py-20 font-bold">در حال بارگذاری...</div>;
 
   return (
-    <main className="container mx-auto px-4 py-8 min-h-[60vh]">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">تکمیل اطلاعات سفارش</h1>
-      </header>
+    <main className="container mx-auto px-4 py-10 min-h-screen" dir="rtl">
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* فرم اطلاعات */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
+            <h2 className="text-2xl font-black mb-8 flex items-center gap-3">
+              <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
+                <MapPin className="text-indigo-600 dark:text-indigo-400" size={24} />
+              </div>
+              اطلاعات تحویل سفارش
+            </h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <aside className="lg:col-span-1">
-           <div className="sticky top-24 space-y-4">
-               {infoBoxes.map((box, index) => (
-                <div key={index} className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
-                  <button onClick={() => setActiveInfoBox(activeInfoBox === index ? null : index)} className="w-full flex items-center justify-between p-4 text-right hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <div className="flex items-center gap-3"><span className="text-indigo-600 dark:text-indigo-400">{box.icon}</span><span className="font-semibold text-gray-800 dark:text-gray-100">{box.title}</span></div>
-                    <ChevronDown className={`w-5 h-5 text-gray-500 transition-transform duration-200 ${activeInfoBox === index ? 'rotate-180' : ''}`} />
-                  </button>
-                  {activeInfoBox === index && <div className="px-4 pb-4 text-sm text-gray-600 dark:text-gray-400">{box.content}</div>}
-                </div>
-              ))}
-           </div>
-        </aside>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-500 mr-2">نام و نام خانوادگی</label>
+                <input 
+                  type="text" 
+                  name="full_name" 
+                  value={formData.full_name} 
+                  onChange={handleChange} 
+                  className="w-full p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20"
+                  placeholder="مثلاً: محمد رضایی"
+                />
+                {errors.full_name && <p className="text-red-500 text-xs flex items-center gap-1"><AlertCircle size={12}/> {errors.full_name}</p>}
+              </div>
 
-        <section className="lg:col-span-2">
-          <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 space-y-6">
-             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">نام و نام خانوادگی</label>
-              <input type="text" name="full_name" value={formData.full_name} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">شماره تماس</label>
-              <input type="tel" name="phone" value={formData.phone} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
-              {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">آدرس دقیق</label>
-              <textarea name="address" value={formData.address} onChange={handleChange} required rows={3} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"></textarea>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">کد پستی</label>
-              <input type="text" name="postal_code" value={formData.postal_code} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
-              {errors.postal_code && <p className="text-red-500 text-xs mt-1">{errors.postal_code}</p>}
-            </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-500 mr-2">شماره تماس (انگلیسی/فارسی)</label>
+                <input 
+                  type="tel" 
+                  name="phone" 
+                  value={formData.phone} 
+                  onChange={handleChange} 
+                  className="w-full p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 text-left"
+                  placeholder="09123456789"
+                  dir="ltr"
+                />
+                {errors.phone && <p className="text-red-500 text-xs flex items-center gap-1"><AlertCircle size={12}/> {errors.phone}</p>}
+              </div>
 
-            <button type="submit" disabled={isSubmitting} className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-all">
-              {isSubmitting ? 'در حال انتقال به درگاه...' : 'پرداخت و ثبت سفارش'}
-            </button>
-          </form>
-        </section>
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-sm font-bold text-gray-500 mr-2">آدرس پستی</label>
+                <textarea 
+                  name="address" 
+                  value={formData.address} 
+                  onChange={handleChange} 
+                  rows={3}
+                  className="w-full p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20"
+                  placeholder="استان، شهر، محله، خیابان، پلاک..."
+                />
+                {errors.address && <p className="text-red-500 text-xs flex items-center gap-1"><AlertCircle size={12}/> {errors.address}</p>}
+              </div>
 
-        <aside className="lg:col-span-1">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden sticky top-24">
-            <div className="p-6 bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
-              <h2 className="text-xl font-semibold">خلاصه سفارش</h2>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-gray-500 mr-2">کد پستی (۱۰ رقم)</label>
+                <input 
+                  type="text" 
+                  name="postal_code" 
+                  value={formData.postal_code} 
+                  onChange={handleChange} 
+                  maxLength={10}
+                  className="w-full p-4 bg-gray-50 dark:bg-gray-900 rounded-2xl border-none outline-none focus:ring-2 ring-indigo-500/20 text-left"
+                  placeholder="۱۲۳۴۵۶۷۸۹۰"
+                  dir="ltr"
+                />
+                {errors.postal_code && <p className="text-red-500 text-xs flex items-center gap-1"><AlertCircle size={12}/> {errors.postal_code}</p>}
+              </div>
+
+              <div className="md:col-span-2 pt-4">
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 dark:shadow-none disabled:bg-gray-400 disabled:shadow-none"
+                >
+                  {isSubmitting ? "در حال اتصال به درگاه..." : "تایید و پرداخت آنلاین"}
+                  <CreditCard size={24} />
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* خلاصه فاکتور */}
+        <div className="lg:col-span-1">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden sticky top-24">
+            <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex items-center gap-2 font-bold">
+              <Truck size={18} className="text-gray-400" />
+              خلاصه سفارش
             </div>
-            <div className="p-6 max-h-96 overflow-y-auto">
-               {cartItems.map(item => (
-                 <div key={item.id} className="flex gap-3 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
-                    <div className="relative w-16 h-16 flex-shrink-0 rounded-lg overflow-hidden">
-                        {item.product.image_url ? <Image src={item.product.image_url} alt={item.product.name} fill className="object-cover" /> : <div className="w-full h-full bg-gray-200 dark:bg-gray-700"></div>}
-                    </div>
-                    <div className="flex-grow">
-                        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{item.product.name}</h4>
-                        <p className="text-xs text-gray-500">تعداد: {item.quantity}</p>
-                        <p className="text-sm font-bold text-indigo-600">{formatToToman((item.product.discount_percentage ? item.product.price * (1 - item.product.discount_percentage / 100) : item.product.price) * item.quantity)}</p>
-                    </div>
-                 </div>
-               ))}
-            </div>
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex justify-between text-xl font-bold text-gray-800 dark:text-gray-100">
-                    <span>مبلغ نهایی:</span>
-                    <span>{formatToToman(cartTotal)}</span>
-                </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="flex justify-between text-gray-500 text-sm">
+                <span>مبلغ کالاها:</span>
+                <span>{formatToToman(cartTotal)}</span>
+              </div>
+             
+              
+              <div className="pt-6 border-t border-dashed border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <span className="font-black text-gray-800 dark:text-gray-100">جمع نهایی:</span>
+                <span className="text-2xl font-black text-indigo-600">{formatToToman(cartTotal)}</span>
+              </div>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl flex items-start gap-3 mt-4">
+                <ShieldCheck className="text-blue-600 shrink-0" size={20} />
+                <p className="text-[11px] text-blue-800 dark:text-blue-300 leading-relaxed">
+                  پرداخت شما از طریق درگاه امن بیت‌پی انجام می‌شود. در صورت بروز هرگونه مشکل، پشتیبانی در کنار شماست.
+                </p>
+              </div>
             </div>
           </div>
-        </aside>
+        </div>
+
       </div>
     </main>
   );
@@ -393,7 +324,7 @@ function CheckoutContent() {
 
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="container mx-auto px-4 py-20 text-center">در حال بارگذاری صفحه پرداخت...</div>}>
+    <Suspense fallback={<div className="p-20 text-center">درحال بارگذاری...</div>}>
       <CheckoutContent />
     </Suspense>
   );
