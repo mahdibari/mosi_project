@@ -163,7 +163,7 @@ function CheckoutContent() {
     return Object.keys(newErrors).length === 0;
   };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+     const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
@@ -191,17 +191,22 @@ function CheckoutContent() {
         throw new Error("خطا در شناسایی کاربر. لطفاً صفحه را رفرش کنید.");
       }
 
-      // --- افزودن شده: ساخت دستی پروفایل برای کاربر مهمان ---
-      // چون ترایگر را حذف کردیم، باید خودمان یک ردیف در جدول profiles بسازیم
-      const { error: profileError } = await supabase
-        .from('users')
-        .upsert({ id: user.id }, { onConflict: 'id' }); // اگر وجود داشت آپدیت می‌کند، اگر نه جدید می‌سازد
-      
-      if (profileError) {
-        console.warn("خطا در ساخت پروفایل ناشناس:", profileError);
-        // اگر جدول شما 'profiles' نیست، ممکن است خطا بدهد اما برنامه نباید متوقف شود
+      // --- بسیار مهم: ساخت کاربر در جدول public.users ---
+      // چون ترایگر را حذف کردیم، باید خودمان مطمئن شویم کاربر در public.users وجود دارد
+      // تا foreign key های addresses و orders بتوانند به آن اشاره کنند
+      const { error: publicUserError } = await supabase
+        .from('users') // توجه: نام جدول شما users است نه profiles
+        .upsert({ 
+            id: user.id, 
+            email: user.email || 'guest@example.com' 
+        }, { onConflict: 'id' });
+
+      if (publicUserError) {
+        console.error("خطا در ساخت پروفایل در public.users:", publicUserError);
+        // اگر اینجا ارور داد، یعنی اجازه درج در جدول users را به anon نداده‌اید
+        // اما فرمول ادامه پیدا می‌کند تا اگر قبلاً رکورد بوده خطا ندهد
       }
-      // -------------------------------------------------------
+      // -------------------------------------------------
 
       // 4. ثبت آدرس
       const { data: newAddress, error: addressError } = await supabase
