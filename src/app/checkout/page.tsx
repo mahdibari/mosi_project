@@ -73,99 +73,91 @@ function CheckoutContent() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    setIsSubmitting(true);
-    try {
-      // ۱. ایجاد کاربر ناشناس در صورت عدم وجود نشست
-      const { data, error: userError } = await supabase.auth.getUser();
-      let user = data.user;
-      
-      if (!user || userError) {
-        await supabase.auth.signOut(); // پاکسازی سشن‌های احتمالی قبلی
-        const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
-        if (anonError) throw new Error(`خطای سیستم: ${anonError.message}`);
-        user = anonData.user;
-      }
-
-      if (!user) throw new Error("خطا در شناسایی کاربر.");
-
-      // ۲. ثبت کاربر در جدول عمومی برای رعایت روابط دیتابیس 
-      const { error: publicUserError } = await supabase
-        .from('users')
-        .upsert({ 
-            id: user.id, 
-            email: user.email || 'guest@example.com',
-            first_name: formData.full_name.split(' ')[0],
-            last_name: formData.full_name.split(' ').slice(1).join(' ')
-        }, { onConflict: 'id' });
-
-      // ۳. ثبت آدرس پستی 
-      const { data: newAddress, error: addressError } = await supabase
-        .from('addresses')
-        .insert([{ ...formData, user_id: user.id }])
-        .select().single();
-
-      if (addressError) throw addressError;
-
-      // ۴. ایجاد رکورد سفارش [cite: 63]
-      const { data: newOrder, error: orderError } = await supabase
-        .from('orders')
-        .insert([{
-          user_id: user.id,
-          address_id: newAddress.id,
-          total_amount: cartTotal,
-          status: 'pending',
-        }])
-        .select().single();
-
-      if (orderError) throw orderError;
-
-      // ۵. ثبت آیتم‌های سبد خرید [cite: 65, 66]
-      const orderItemsToInsert = cartItems.map(item => ({
-        order_id: newOrder.id,
-        product_id: item.product.id,
-        quantity: item.quantity,
-        price: item.product.discount_percentage 
-          ? item.product.price * (1 - item.product.discount_percentage / 100)
-          : item.product.price,
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItemsToInsert);
-
-      if (itemsError) throw itemsError;
-
-      // ۶. فراخوانی API درگاه پرداخت (بیت‌پی) 
-      const paymentData = {
-        amount: cartTotal,
-        name: formData.full_name,
-        phone: formData.phone,
-        factorId: newOrder.id,
-        redirectUrl: `${window.location.origin}/api/payment/callback`,
-      };
-
-      const response = await fetch('/api/payment/initiate-bitpay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(paymentData),
-      });
-
-      const resData = await response.json();
-      if (resData.success) {
-        window.location.href = resData.bitpayRedirectUrl; [cite: 72]
-      } else {
-        throw new Error(resData.message);
-      }
+  setIsSubmitting(true);
+  try {
+    // ۱. ایجاد نشست مهمان
+    const { data: authData } = await supabase.auth.getUser();
+    let user = authData.user;
     
-    } catch (error: any) {
-      alert(error.message || 'خطایی در ثبت سفارش رخ داد');
-    } finally {
-      setIsSubmitting(false);
+    if (!user) {
+      const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
+      if (anonError) throw new Error("خطا در ایجاد دسترسی مهمان");
+      user = anonData.user;
     }
-  };
+
+    if (!user) throw new Error("کاربر شناسایی نشد");
+
+    // ۲. ثبت در جدول کاربران (برای جلوگیری از خطای Foreign Key)
+    await supabase.from('users').upsert({ 
+      id: user.id, 
+      phone: toEnglishDigits(formData.phone),
+      first_name: formData.full_name.split(' ')[0],
+      last_name: formData.full_name.split(' ').slice(1).join(' ')
+    });
+
+    // ۳. ثبت آدرس
+    const { data: newAddress, error: addressError } = await supabase
+      .from('addresses')
+      .insert([{ 
+        ...formData, 
+        phone: toEnglishDigits(formData.phone),
+        postal_code: toEnglishDigits(formData.postal_code),
+        user_id: user.id 
+      }])
+      .select().single();
+
+    if (addressError) throw addressError;
+
+    // ۴. ثبت سفارش
+    const { data: newOrder, error: orderError } = await supabase
+      .from('orders')
+      .insert([{
+        user_id: user.id,
+        address_id: newAddress.id,
+        total_amount: cartTotal, // بدون هیچ تبدیلی
+        status: 'pending',
+      }])
+      .select().single();
+
+    if (orderError) throw orderError;
+
+    // ۵. ثبت آیتم‌ها
+    const orderItems = cartItems.map(item => ({
+      order_id: newOrder.id,
+      product_id: item.product_id,
+      quantity: item.quantity,
+      price: item.product.price
+    }));
+
+    await supabase.from('order_items').insert(orderItems);
+
+    // ۶. درخواست درگاه پرداخت
+    const response = await fetch('/api/payment/initiate-bitpay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: cartTotal, // ارسال مستقیم مبلغ
+        factorId: newOrder.id,
+        redirectUrl: `${window.location.origin}/checkout?status=success`,
+      }),
+    });
+
+    const resData = await response.json();
+    if (resData.success && resData.bitpayRedirectUrl) {
+      window.location.href = resData.bitpayRedirectUrl;
+    } else {
+      throw new Error(resData.message || "خطا در اتصال به درگاه");
+    }
+  
+  } catch (error: any) {
+    alert(error.message);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (isLoading) return <div className="text-center py-20 font-bold">در حال بارگذاری...</div>;
 
