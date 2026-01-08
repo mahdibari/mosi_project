@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useCart } from '@/contexts/CartContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { 
   MapPin, 
@@ -26,10 +26,14 @@ const toEnglishDigits = (str: string) => {
             .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
 };
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const { cartItems, cartTotal, clearCart, isLoading } = useCart();
   const router = useRouter();
+  const searchParams = useSearchParams();
   
+  const status = searchParams.get('status');
+  const isSuccess = status === 'success';
+
   const [formData, setFormData] = useState({
     full_name: '',
     phone: '',
@@ -44,7 +48,7 @@ export default function CheckoutPage() {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
 
-  // Check authentication status on component mount
+  // بررسی وضعیت احراز هویت و بازیابی دیتای فرم
   useEffect(() => {
     const checkAuthStatus = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -54,18 +58,40 @@ export default function CheckoutPage() {
       setIsCheckingAuth(false);
     };
     
+    // بازیابی اطلاعات ذخیره شده
+    const savedData = localStorage.getItem('pending_checkout_data');
+    if (savedData) {
+      try {
+        setFormData(JSON.parse(savedData));
+      } catch (e) {
+        console.error("Error parsing saved data", e);
+      }
+    }
+
     checkAuthStatus();
   }, []);
+
+  // پاکسازی سبد خرید بعد از بازگشت موفق از درگاه
+  useEffect(() => {
+    if (isSuccess) {
+      clearCart();
+      localStorage.removeItem('pending_checkout_data');
+    }
+  }, [isSuccess, clearCart]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
-    // تبدیل خودکار اعداد فارسی به انگلیسی در فیلدهای حساس
     const processedValue = (name === 'phone' || name === 'postal_code') 
       ? toEnglishDigits(value) 
       : value;
     
-    setFormData(prev => ({ ...prev, [name]: processedValue }));
+    setFormData(prev => {
+      const newState = { ...prev, [name]: processedValue };
+      localStorage.setItem('pending_checkout_data', JSON.stringify(newState));
+      return newState;
+    });
+
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: '' }));
   };
 
@@ -82,42 +108,32 @@ export default function CheckoutPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // First validate form data
-    if (!validateForm()) return;
-    
-    // Check if user is logged in
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      // Show authentication modal if user is not logged in
-      setShowAuthModal(true);
-      return;
-    }
-    
-    // Proceed with checkout if user is logged in
+  // تابع اصلی اجرای اکشن نهایی ثبت سفارش
+  const executeOrderAction = async (user: any) => {
     setIsSubmitting(true);
-
     try {
-      const user = session.user;
-
       // ۱. ثبت آدرس
       const { data: newAddress, error: addressError } = await supabase
         .from('addresses')
-        .insert([{ ...formData, user_id: user.id }])
+        .insert([{ 
+          full_name: formData.full_name,
+          phone: formData.phone,
+          address: formData.address,
+          postal_code: formData.postal_code,
+          user_id: user.id 
+        }])
         .select()
         .single();
 
       if (addressError) throw new Error('خطا در ثبت آدرس');
 
-      // ۲. ثبت سفارش (مبلغ دقیق سبد خرید بدون هزینه اضافی)
+      // ۲. ثبت سفارش
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert([{
           user_id: user.id,
           address_id: newAddress.id,
-          total_amount: cartTotal, // فقط مبلغ محصولات
+          total_amount: cartTotal,
           status: 'pending',
         }])
         .select()
@@ -157,11 +173,11 @@ export default function CheckoutPage() {
       const result = await response.json();
 
       if (result.success && result.bitpayRedirectUrl) {
+        localStorage.removeItem('pending_checkout_data');
         window.location.href = result.bitpayRedirectUrl;
       } else {
         throw new Error(result.message || 'خطا در اتصال به درگاه');
       }
-    
     } catch (error: any) {
       alert(error.message || 'مشکلی پیش آمد، لطفاً دوباره تلاش کنید.');
     } finally {
@@ -169,14 +185,29 @@ export default function CheckoutPage() {
     }
   };
 
-  const handleAuthSuccess = () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    await executeOrderAction(session.user);
+  };
+
+  const handleAuthSuccess = async () => {
     setShowAuthModal(false);
     setIsUserLoggedIn(true);
-    // Automatically submit the form after successful authentication
-    setTimeout(() => {
-      const event = new Event('submit', { cancelable: true, bubbles: true });
-      document.querySelector('form')?.dispatchEvent(event as unknown as React.FormEvent);
-    }, 500);
+    
+    // دریافت سشن جدید بعد از لاگین/ثبت‌نام
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      await executeOrderAction(session.user);
+    }
   };
 
   if (isLoading || isCheckingAuth) return <div className="text-center py-20 font-bold">در حال بارگذاری...</div>;
@@ -185,43 +216,42 @@ export default function CheckoutPage() {
     <main className="container mx-auto px-4 py-10 min-h-screen" dir="rtl">
       {/* Authentication Modal */}
       {showAuthModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl w-full max-w-md relative">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl w-full max-w-md relative overflow-hidden animate-in zoom-in duration-300">
             <button 
               onClick={() => setShowAuthModal(false)}
-              className="absolute top-4 left-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="absolute top-6 left-6 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors z-10"
             >
-              <X size={20} className="text-gray-500 dark:text-gray-400" />
+              <X size={20} className="text-gray-500" />
             </button>
             
-            <div className="p-6">
-              <h2 className="text-2xl font-bold text-center mb-6">
+            <div className="p-8">
+              <h2 className="text-2xl font-black text-center mb-8">
                 {authMode === 'login' ? 'ورود به حساب' : 'ثبت نام'}
               </h2>
               
+              <div className="bg-gray-50 dark:bg-gray-900/50 p-1 rounded-2xl mb-8 flex">
+                <button 
+                  onClick={() => setAuthMode('login')}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-all ${authMode === 'login' ? 'bg-white dark:bg-gray-800 shadow-sm text-indigo-600' : 'text-gray-400'}`}
+                >ورود</button>
+                <button 
+                  onClick={() => setAuthMode('signup')}
+                  className={`flex-1 py-3 rounded-xl font-bold transition-all ${authMode === 'signup' ? 'bg-white dark:bg-gray-800 shadow-sm text-indigo-600' : 'text-gray-400'}`}
+                >ثبت نام</button>
+              </div>
+
               {authMode === 'login' ? (
                 <LoginForm onSuccess={handleAuthSuccess} />
               ) : (
                 <SignupForm onSuccess={handleAuthSuccess} />
               )}
-              
-              <div className="mt-4 text-center">
-                <button
-                  onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
-                  className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium"
-                >
-                  {authMode === 'login' 
-                    ? 'حساب کاربری ندارید؟ ثبت نام کنید' 
-                    : 'قبلاً حساب داشته‌اید؟ ورود'}
-                </button>
-              </div>
             </div>
           </div>
         </div>
       )}
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
         {/* فرم اطلاعات */}
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-100 dark:border-gray-700">
@@ -247,7 +277,7 @@ export default function CheckoutPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-500 mr-2">شماره تماس (انگلیسی/فارسی)</label>
+                <label className="text-sm font-bold text-gray-500 mr-2">شماره تماس</label>
                 <input 
                   type="tel" 
                   name="phone" 
@@ -292,7 +322,7 @@ export default function CheckoutPage() {
                 <button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 dark:shadow-none disabled:bg-gray-400 disabled:shadow-none"
+                  className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 shadow-xl disabled:bg-gray-400"
                 >
                   {isSubmitting ? "در حال اتصال به درگاه..." : "تایید و پرداخت آنلاین"}
                   <CreditCard size={24} />
@@ -333,5 +363,13 @@ export default function CheckoutPage() {
 
       </div>
     </main>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="p-20 text-center font-bold">در حال بارگذاری...</div>}>
+      <CheckoutContent />
+    </Suspense>
   );
 }
