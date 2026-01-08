@@ -10,7 +10,7 @@ const toEnglishDigits = (str: string) => {
             .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
 };
 
-export default function LoginForm() {
+export default function LoginForm({ onSuccess }: { onSuccess?: () => void }) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,7 +18,7 @@ export default function LoginForm() {
   
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnUrl = searchParams.get('returnUrl') || '/';
+  const returnUrl = searchParams.get('returnUrl') || '/checkout';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,9 +40,16 @@ export default function LoginForm() {
         throw loginError;
       }
 
-      router.push(returnUrl);
-      router.refresh();
+      // If onSuccess callback is provided, call it instead of redirecting
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push(returnUrl);
+        router.refresh();
+      }
    
+    } catch (err: any) {
+      setError(err.message || 'مشکلی در ورود به حساب رخ داد');
     } finally {
       setLoading(false);
     }
@@ -90,6 +97,7 @@ export default function LoginForm() {
           {loading ? 'در حال ورود...' : 'ورود امن'}
           <ArrowLeft size={20} />
         </button>
+        
       </form>
     </div>
   );

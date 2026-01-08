@@ -1,5 +1,5 @@
 'use client';
-
+//app/payment-result/page.tsx
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle, XCircle, Home } from 'lucide-react';
 import { Suspense } from 'react';
