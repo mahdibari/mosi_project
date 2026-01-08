@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { UserPlus, Phone, Lock, User, ArrowLeft, CheckCircle2 } from 'lucide-react';
+
+const toEnglishDigits = (str: string) => {
+  return str.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString())
+            .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
+};
 
 export default function SignupForm() {
   const [phone, setPhone] = useState('');
@@ -10,113 +16,121 @@ export default function SignupForm() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl') || '/';
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
-      // ایجاد کاربر با شماره تلفن به عنوان ایمیل موقت
+      const engPhone = toEnglishDigits(phone);
+      const generatedEmail = `${engPhone}@temp.domain`;
+
+      // ۱. ثبت‌نام در بخش Auth
       const { data: authData, error: signupError } = await supabase.auth.signUp({
-        email: `${phone}@temp.domain`, // استفاده از شماره تلفن به عنوان ایمیل موقت
+        email: generatedEmail,
         password,
-        options: {
-          data: {
-            phone: phone,
-            first_name: firstName,
-            last_name: lastName,
-          },
-        },
+        options: { data: { first_name: firstName, last_name: lastName, phone: engPhone } },
       });
 
-      if (signupError) {
-        setError(signupError.message);
-        return;
-      }
+      if (signupError) throw signupError;
 
       if (authData.user) {
-        // به‌روزرسانی اطلاعات کاربر در جدول users
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            phone: phone,
+        // ۲. ثبت همزمان در جدول profile (مطابق دیتابیس شما)
+        const { error: dbError } = await supabase
+          .from('profile')
+          .upsert({
+            id: authData.user.id,
+            phone: engPhone,
             first_name: firstName,
             last_name: lastName,
-          })
-          .eq('id', authData.user.id);
+            email: generatedEmail,
+          }, { onConflict: 'phone' });
 
-        if (updateError) {
-          setError(updateError.message);
-          return;
-        }
+        if (dbError) throw dbError;
 
-        alert('ثبت‌نام با موفقیت انجام شد!');
-        router.push('/auth/login');
+        setSuccess(true);
+        setTimeout(() => {
+          router.push(returnUrl);
+          router.refresh();
+        }, 2000);
       }
-    } catch (err) {
-      setError('خطایی در ثبت‌نام رخ داد. لطفاً دوباره تلاش کنید.');
+    } catch (err: any) {
+      setError(err.message || 'خطایی در ثبت‌نام رخ داد.');
+    } finally {
+      setLoading(false);
     }
   };
 
+  if (success) {
+    return (
+      <div className="flex flex-col items-center justify-center p-10 bg-white rounded-[2rem] shadow-2xl border border-green-100 animate-in zoom-in duration-500">
+        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
+          <CheckCircle2 size={48} />
+        </div>
+        <h2 className="text-2xl font-black text-gray-800 mb-2">خوش آمدید!</h2>
+        <p className="text-gray-500 text-center">حساب شما با موفقیت ساخته شد. در حال انتقال به صفحه پرداخت...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6">ثبت‌نام</h2>
-      {error && <p className="text-red-500 mb-4">{error}</p>}
-      <form onSubmit={handleSignup}>
-        <div className="mb-4">
-          <label className="block text-gray-700 mb-2">نام</label>
+    <div className="max-w-md mx-auto bg-white p-10 rounded-[2.5rem] shadow-2xl shadow-indigo-100 border border-gray-50 mt-10">
+      <div className="text-center mb-10">
+        <div className="w-16 h-16 bg-indigo-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-3 shadow-lg">
+          <UserPlus size={32} />
+        </div>
+        <h2 className="text-3xl font-black text-gray-800">ثبت‌نام سریع</h2>
+        <p className="text-gray-400 mt-2 text-sm">لطفاً اطلاعات خود را وارد کنید</p>
+      </div>
+
+      <form onSubmit={handleSignup} className="space-y-5">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="relative group">
+            <input
+              type="text" placeholder="نام" value={firstName} onChange={(e) => setFirstName(e.target.value)} required
+              className="w-full pr-11 pl-4 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none transition-all"
+            />
+            <User className="absolute right-4 top-4 text-gray-300 group-focus-within:text-indigo-500" size={20} />
+          </div>
           <input
-            type="text"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            className="w-full px-4 py-2 border rounded-md"
-            required
+            type="text" placeholder="نام خانوادگی" value={lastName} onChange={(e) => setLastName(e.target.value)} required
+            className="w-full px-4 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none transition-all"
           />
         </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 mb-2">نام خانوادگی</label>
+
+        <div className="relative group">
           <input
-            type="text"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            className="w-full px-4 py-2 border rounded-md"
-            required
+            type="tel" placeholder="شماره موبایل (09...)" value={phone} onChange={(e) => setPhone(e.target.value)} required
+            className="w-full pr-11 pl-4 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none transition-all text-left"
           />
+          <Phone className="absolute right-4 top-4 text-gray-300 group-focus-within:text-indigo-500" size={20} />
         </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 mb-2">شماره تلفن</label>
+
+        <div className="relative group">
           <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="w-full px-4 py-2 border rounded-md"
-            required
+            type="password" placeholder="رمز عبور" value={password} onChange={(e) => setPassword(e.target.value)} required
+            className="w-full pr-11 pl-4 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none transition-all"
           />
+          <Lock className="absolute right-4 top-4 text-gray-300 group-focus-within:text-indigo-500" size={20} />
         </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 mb-2">رمز عبور</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border rounded-md"
-            required
-          />
-        </div>
+
+        {error && <div className="text-red-500 text-xs bg-red-50 p-3 rounded-xl flex items-center gap-2 font-bold italic">{error}</div>}
+
         <button
-          type="submit"
-          className="w-full bg-green-500 text-white py-2 rounded-md hover:bg-green-600"
+          disabled={loading}
+          className="w-full py-5 bg-indigo-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
         >
-          ثبت‌نام
+          {loading ? 'در حال ثبت نام...' : 'عضویت و ادامه'}
+          <ArrowLeft size={20} />
         </button>
       </form>
-      <p className="mt-4 text-center">
-        حساب دارید؟{' '}
-        <a href="/auth/login" className="text-blue-500 hover:underline">
-          وارد شوید
-        </a>
-      </p>
     </div>
   );
 }

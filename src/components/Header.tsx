@@ -79,14 +79,7 @@ export default function Header() {
               </Link>
 
               {/* ۳. آیکون زنگ توجه (جدید) */}
-              <button 
-                onClick={() => setIsNotificationOpen(true)}
-                className="relative p-2.5 bg-amber-50 dark:bg-amber-900/30 text-amber-600 rounded-2xl hover:bg-amber-500 hover:text-white transition-all group"
-              >
-                <Bell className="w-5 h-5" />
-                {/* نقطه قرمز حساس */}
-                <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>
-              </button>
+
 
               {/* آیکون سبد خرید */}
              <Link href="/cart" className="relative p-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-2xl group transition-all hover:bg-indigo-600 hover:text-white">
@@ -143,9 +136,7 @@ export default function Header() {
               
               <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-3">اطلاعیه مهم</h2>
               
-              <p className="text-gray-600 dark:text-gray-300 leading-relaxed text-lg mb-8">
-               توجه کنید بدون ثبت نام یا ورود به حساب کاربری میتونید سفارش خود را ثبت کنید اما برای پیگیری سفارش و  ثبت نظر باید وارد حساب کاربری خود شوید
-              </p>
+              
               
               <button 
                 onClick={() => setIsNotificationOpen(false)}
@@ -180,6 +171,7 @@ export default function Header() {
                    <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="block p-4 font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 rounded-xl">خانه</Link>
                    <Link href="/products" onClick={() => setIsMobileMenuOpen(false)} className="block p-4 font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 rounded-xl">محصولات</Link>
                    <Link href="/contact" onClick={() => setIsMobileMenuOpen(false)} className="block p-4 font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 rounded-xl">تماس با ما</Link>
+                    <Link href="/about" onClick={() => setIsMobileMenuOpen(false)} className="block p-4 font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-50 rounded-xl">درباره ما</Link>
                 </div>
 
                 <div className="pt-6 flex gap-4 border-t dark:border-gray-800">

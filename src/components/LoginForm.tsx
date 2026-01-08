@@ -2,86 +2,89 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { LogIn, Phone, Lock, ArrowLeft } from 'lucide-react';
+
+const toEnglishDigits = (str: string) => {
+  return str.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString())
+            .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
+};
 
 export default function LoginForm() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl') || '/';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
-      // ابتدا کاربر را بر اساس شماره تلفن پیدا می‌کنیم
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('email')
-        .eq('phone', phone)
-        .single();
+      const engPhone = toEnglishDigits(phone);
+      const generatedEmail = `${engPhone}@temp.domain`;
 
-      if (userError || !userData) {
-        setError('کاربری با این شماره تلفن یافت نشد');
-        return;
-      }
-
-      // سپس با ایمیل موقت کاربر وارد می‌شویم
-      const { error } = await supabase.auth.signInWithPassword({
-        email: userData.email || `${phone}@temp.domain`,
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: generatedEmail,
         password,
       });
 
-      if (error) {
-        setError(error.message);
-      } else {
-        router.push('/');
-        router.refresh();
+      if (loginError) {
+        if (loginError.status === 400) throw new Error('شماره یا رمز عبور اشتباه است.');
+        throw loginError;
       }
-    } catch (err) {
-      setError('خطایی در ورود رخ داد. لطفاً دوباره تلاش کنید.');
+
+      router.push(returnUrl);
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6">ورود به حساب</h2>
-      {error && <p className="text-red-500 mb-4">{error}</p>}
-      <form onSubmit={handleLogin}>
-        <div className="mb-4">
-          <label className="block text-gray-700 mb-2">شماره تلفن</label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="w-full px-4 py-2 border rounded-md"
-            required
-          />
+    <div className="max-w-md mx-auto bg-white p-10 rounded-[2.5rem] shadow-2xl shadow-blue-100 border border-gray-50 mt-10">
+      <div className="text-center mb-10">
+        <div className="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center mx-auto mb-4 -rotate-3 shadow-lg">
+          <LogIn size={32} />
         </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 mb-2">رمز عبور</label>
+        <h2 className="text-3xl font-black text-gray-800">خوش آمدید</h2>
+        <p className="text-gray-400 mt-2 text-sm">برای ادامه وارد حساب خود شوید</p>
+      </div>
+
+      <form onSubmit={handleLogin} className="space-y-6">
+        <div className="relative group">
           <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border rounded-md"
-            required
+            type="tel" placeholder="شماره موبایل" value={phone} onChange={(e) => setPhone(e.target.value)} required
+            className="w-full pr-11 pl-4 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 border-none transition-all text-left font-bold"
           />
+          <Phone className="absolute right-4 top-4 text-gray-300 group-focus-within:text-blue-500" size={20} />
         </div>
+
+        <div className="relative group">
+          <input
+            type="password" placeholder="رمز عبور" value={password} onChange={(e) => setPassword(e.target.value)} required
+            className="w-full pr-11 pl-4 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 border-none transition-all font-bold"
+          />
+          <Lock className="absolute right-4 top-4 text-gray-300 group-focus-within:text-blue-500" size={20} />
+        </div>
+
+        {error && <div className="text-red-500 text-xs bg-red-50 p-4 rounded-xl font-bold border-r-4 border-red-500 italic">{error}</div>}
+
         <button
-          type="submit"
-          className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600"
+          disabled={loading}
+          className="w-full py-5 bg-blue-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all flex items-center justify-center gap-3"
         >
-          ورود
+          {loading ? 'در حال ورود...' : 'ورود به حساب'}
+          <ArrowLeft size={20} />
         </button>
       </form>
-      <p className="mt-4 text-center">
-        حساب ندارید؟{' '}
-        <a href="/auth/signup" className="text-blue-500 hover:underline">
-          ثبت‌نام کنید
-        </a>
-      </p>
     </div>
   );
 }
