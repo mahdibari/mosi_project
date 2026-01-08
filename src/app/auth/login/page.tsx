@@ -1,34 +1,20 @@
 'use client';
-
+//app/
+import { Suspense } from 'react';
 import LoginForm from '@/components/LoginForm';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function LoginPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const returnUrl = searchParams.get('returnUrl') || '/checkout';
-
-  const handleSuccess = () => {
-    router.push(returnUrl);
-    router.refresh();
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8" dir="rtl">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white">
-            ورود به حساب کاربری
-          </h2>
+    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] px-4">
+      {/* این Suspense باعث می‌شود Next.js در زمان Build ارور ندهد */}
+      <Suspense fallback={
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-gray-500 font-bold">در حال بارگذاری...</p>
         </div>
-        <LoginForm onSuccess={handleSuccess} />
-        <div className="text-center">
-          <Link href={`/auth/signup?returnUrl=${encodeURIComponent(returnUrl)}`} className="font-medium text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300">
-            حساب کاربری ندارید؟ ثبت نام کنید
-          </Link>
-        </div>
-      </div>
+      }>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
