@@ -72,40 +72,44 @@ function CheckoutContent() {
     return Object.keys(newErrors).length === 0;
   };
 
- const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   if (!validateForm()) return;
 
   setIsSubmitting(true);
   try {
-    // ۱. بررسی وضعیت لاگین یا ایجاد نشست مهمان
-    let { data: { user } } = await supabase.auth.getUser();
+    // ۱. دریافت اطلاعات کاربر (استفاده از const برای رفع خطای ESLint)
+    const { data: authData } = await supabase.auth.getUser();
+    let user = authData.user;
     
+    // ۲. اگر کاربر لاگین نیست، ایجاد نشست مهمان (Anonymous)
     if (!user) {
       const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
-      if (anonError) throw new Error("خطا در ایجاد دسترسی مهمان: " + anonError.message);
+      if (anonError) throw new Error("خطا در ایجاد نشست مهمان");
       user = anonData.user;
     }
 
-    if (!user) throw new Error("کاربر شناسایی نشد.");
+    if (!user) throw new Error("کاربر شناسایی نشد");
 
-    // ۲. ثبت اطلاعات کاربر در جدول عمومی (برای رفع ارور Foreign Key)
-    // از upsert استفاده می‌کنیم که اگر کاربر از قبل بود فقط آپدیت شود
-    const { error: userTableError } = await supabase.from('users').upsert({
+    // ۳. ثبت/آپدیت در جدول کاربران (حل مشکل NOT NULL ایمیل و گوشی)
+    const englishPhone = toEnglishDigits(formData.phone);
+    const { error: userError } = await supabase.from('users').upsert({
       id: user.id,
-      phone: toEnglishDigits(formData.phone),
+      phone: englishPhone,
+      // ساخت ایمیل فرضی اگر کاربر ایمیل ندارد تا خطای دیتابیس رفع شود
+      email: user.email || `${englishPhone}@guest.com`, 
       first_name: formData.full_name.split(' ')[0] || '',
       last_name: formData.full_name.split(' ').slice(1).join(' ') || '',
     });
+    
+    if (userError) throw new Error("خطا در ثبت پروفایل: " + userError.message);
 
-    if (userTableError) throw new Error("خطا در ثبت پروفایل: " + userTableError.message);
-
-    // ۳. ثبت آدرس
+    // ۴. ثبت آدرس
     const { data: newAddress, error: addressError } = await supabase
       .from('addresses')
       .insert([{ 
         ...formData, 
-        phone: toEnglishDigits(formData.phone),
+        phone: englishPhone,
         postal_code: toEnglishDigits(formData.postal_code),
         user_id: user.id 
       }])
@@ -113,31 +117,31 @@ function CheckoutContent() {
 
     if (addressError) throw addressError;
 
-    // ۴. ثبت سفارش اصلی (مبلغ بدون تغییر واحد)
+    // ۵. ایجاد سفارش (ارسال مستقیم مبلغ بدون تغییر واحد)
     const { data: newOrder, error: orderError } = await supabase
       .from('orders')
       .insert([{
         user_id: user.id,
         address_id: newAddress.id,
-        total_amount: cartTotal, // دقیقاً مبلغ سبد خرید
+        total_amount: cartTotal, 
         status: 'pending',
       }])
       .select().single();
 
     if (orderError) throw orderError;
 
-    // ۵. ثبت آیتم‌های سفارش
+    // ۶. ثبت ریز اقلام سبد خرید
     const orderItems = cartItems.map(item => ({
       order_id: newOrder.id,
       product_id: item.product_id,
       quantity: item.quantity,
-      price: item.product.price // قیمت نهایی واحد
+      price: item.product.price
     }));
-
+    
     const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
     if (itemsError) throw itemsError;
 
-    // ۶. درخواست درگاه پرداخت
+    // ۷. فراخوانی API درگاه (واحد پولی تغییر نمی‌کند)
     const response = await fetch('/api/payment/initiate-bitpay', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
