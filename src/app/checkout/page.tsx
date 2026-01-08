@@ -72,100 +72,90 @@ function CheckoutContent() {
     return Object.keys(newErrors).length === 0;
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!validateForm()) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateForm()) return;
 
-  setIsSubmitting(true);
-  try {
-    // ۱. دریافت اطلاعات کاربر (استفاده از const برای رفع خطای ESLint)
-    const { data: authData } = await supabase.auth.getUser();
-    let user = authData.user;
-    
-    // ۲. اگر کاربر لاگین نیست، ایجاد نشست مهمان (Anonymous)
-    if (!user) {
-      const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
-      if (anonError) throw new Error("خطا در ایجاد نشست مهمان");
-      user = anonData.user;
-    }
+    setIsSubmitting(true);
 
-    if (!user) throw new Error("کاربر شناسایی نشد");
+    try {
+      // حل مشکل Fetch: دریافت سشن معتبر قبل از هر عملیات
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        alert('نشست شما پایان یافته است. لطفا دوباره وارد حساب خود شوید.');
+        router.push('/login');
+        return;
+      }
 
-    // ۳. ثبت/آپدیت در جدول کاربران (حل مشکل NOT NULL ایمیل و گوشی)
-    const englishPhone = toEnglishDigits(formData.phone);
-    const { error: userError } = await supabase.from('users').upsert({
-      id: user.id,
-      phone: englishPhone,
-      // ساخت ایمیل فرضی اگر کاربر ایمیل ندارد تا خطای دیتابیس رفع شود
-      email: user.email || `${englishPhone}@guest.com`, 
-      first_name: formData.full_name.split(' ')[0] || '',
-      last_name: formData.full_name.split(' ').slice(1).join(' ') || '',
-    });
-    
-    if (userError) throw new Error("خطا در ثبت پروفایل: " + userError.message);
+      const user = session.user;
 
-    // ۴. ثبت آدرس
-    const { data: newAddress, error: addressError } = await supabase
-      .from('addresses')
-      .insert([{ 
-        ...formData, 
-        phone: englishPhone,
-        postal_code: toEnglishDigits(formData.postal_code),
-        user_id: user.id 
-      }])
-      .select().single();
+      // ۱. ثبت آدرس
+      const { data: newAddress, error: addressError } = await supabase
+        .from('addresses')
+        .insert([{ ...formData, user_id: user.id }])
+        .select()
+        .single();
 
-    if (addressError) throw addressError;
+      if (addressError) throw new Error('خطا در ثبت آدرس');
 
-    // ۵. ایجاد سفارش (ارسال مستقیم مبلغ بدون تغییر واحد)
-    const { data: newOrder, error: orderError } = await supabase
-      .from('orders')
-      .insert([{
-        user_id: user.id,
-        address_id: newAddress.id,
-        total_amount: cartTotal, 
-        status: 'pending',
-      }])
-      .select().single();
+      // ۲. ثبت سفارش (مبلغ دقیق سبد خرید بدون هزینه اضافی)
+      const { data: newOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert([{
+          user_id: user.id,
+          address_id: newAddress.id,
+          total_amount: cartTotal, // فقط مبلغ محصولات
+          status: 'pending',
+        }])
+        .select()
+        .single();
 
-    if (orderError) throw orderError;
+      if (orderError) throw new Error('خطا در ایجاد سفارش');
 
-    // ۶. ثبت ریز اقلام سبد خرید
-    const orderItems = cartItems.map(item => ({
-      order_id: newOrder.id,
-      product_id: item.product_id,
-      quantity: item.quantity,
-      price: item.product.price
-    }));
-    
-    const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-    if (itemsError) throw itemsError;
+      // ۳. ثبت محصولات سفارش
+      const orderItems = cartItems.map(item => ({
+        order_id: newOrder.id,
+        product_id: item.product.id,
+        quantity: item.quantity,
+        price: item.product.discount_percentage 
+          ? item.product.price * (1 - item.product.discount_percentage / 100)
+          : item.product.price,
+      }));
 
-    // ۷. فراخوانی API درگاه (واحد پولی تغییر نمی‌کند)
-    const response = await fetch('/api/payment/initiate-bitpay', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+      if (itemsError) throw itemsError;
+
+      // ۴. ارسال به درگاه پرداخت
+      const paymentData = {
         amount: cartTotal,
+        name: formData.full_name,
+        phone: formData.phone,
+        description: `سفارش ${newOrder.id}`,
         factorId: newOrder.id,
-        redirectUrl: `${window.location.origin}/checkout?status=success`,
-      }),
-    });
+        redirectUrl: `${window.location.origin}/api/payment/callback`,
+      };
 
-    const resData = await response.json();
-    if (resData.success && resData.bitpayRedirectUrl) {
-      window.location.href = resData.bitpayRedirectUrl;
-    } else {
-      throw new Error(resData.message || "خطا در اتصال به درگاه");
+      const response = await fetch('/api/payment/initiate-bitpay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentData),
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.bitpayRedirectUrl) {
+        window.location.href = result.bitpayRedirectUrl;
+      } else {
+        throw new Error(result.message || 'خطا در اتصال به درگاه');
+      }
+    
+    } catch (error: any) {
+      alert(error.message || 'مشکلی پیش آمد، لطفاً دوباره تلاش کنید.');
+    } finally {
+      setIsSubmitting(false);
     }
-  
-  } catch (error: any) {
-    console.error("Checkout Error:", error);
-    alert(error.message || "مشکلی در فرآیند خرید پیش آمد");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   if (isLoading) return <div className="text-center py-20 font-bold">در حال بارگذاری...</div>;
 
