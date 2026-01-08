@@ -59,8 +59,7 @@ export default function SignupForm() {
           router.refresh();
         }, 2000);
       }
-    } catch (err: any) {
-      setError(err.message || 'خطایی در ثبت‌نام رخ داد.');
+   
     } finally {
       setLoading(false);
     }
