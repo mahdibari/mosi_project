@@ -20,7 +20,7 @@ export default function SignupForm() {
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
-  const searchParams = useSearchParams(); // استفاده امن داخل Suspense
+  const searchParams = useSearchParams();
   const returnUrl = searchParams.get('returnUrl') || '/';
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -32,7 +32,6 @@ export default function SignupForm() {
       const engPhone = toEnglishDigits(phone);
       const generatedEmail = `${engPhone}@temp.domain`;
 
-      // ۱. ثبت‌نام در Auth
       const { data: authData, error: signupError } = await supabase.auth.signUp({
         email: generatedEmail,
         password,
@@ -42,10 +41,7 @@ export default function SignupForm() {
       if (signupError) throw signupError;
 
       if (authData.user) {
-        // ۲. ثبت در جدول profile شما
-        const { error: dbError } = await supabase
-          .from('profile')
-          .upsert({
+        const { error: dbError } = await supabase.from('profile').upsert({
             id: authData.user.id,
             phone: engPhone,
             first_name: firstName,
@@ -54,30 +50,25 @@ export default function SignupForm() {
           }, { onConflict: 'phone' });
 
         if (dbError) throw dbError;
-
         setSuccess(true);
-        setTimeout(() => {
-          router.push(returnUrl);
-          router.refresh();
-        }, 2000);
+        setTimeout(() => { router.push(returnUrl); router.refresh(); }, 2000);
       }
-    
+    } catch (err: any) {
+      setError(err.message || 'خطایی رخ داد');
     } finally {
       setLoading(false);
     }
   };
 
-  if (success) {
-    return (
-      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-[2.5rem] shadow-2xl border border-green-50">
-        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
-          <CheckCircle2 size={40} />
-        </div>
-        <h2 className="text-2xl font-black text-gray-800 mb-2">ثبت‌نام موفق!</h2>
-        <p className="text-gray-500">در حال هدایت به مقصد...</p>
+  if (success) return (
+    <div className="flex flex-col items-center justify-center p-12 bg-white rounded-[2.5rem] shadow-2xl border border-green-50 animate-in zoom-in duration-500">
+      <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 shadow-inner">
+        <CheckCircle2 size={40} />
       </div>
-    );
-  }
+      <h2 className="text-2xl font-black text-gray-800 mb-2">ثبت‌نام موفق!</h2>
+      <p className="text-gray-500">در حال انتقال به صفحه مقصد...</p>
+    </div>
+  );
 
   return (
     <div className="max-w-md w-full bg-white p-10 rounded-[3rem] shadow-2xl shadow-indigo-100 border border-gray-50">
@@ -86,18 +77,23 @@ export default function SignupForm() {
           <UserPlus size={32} />
         </div>
         <h2 className="text-3xl font-black text-gray-800">ایجاد حساب</h2>
+        <p className="text-gray-400 mt-2 text-sm">لطفاً اطلاعات خود را وارد کنید</p>
       </div>
 
       <form onSubmit={handleSignup} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <input
-            type="text" placeholder="نام" value={firstName} onChange={(e) => setFirstName(e.target.value)} required
-            className="w-full px-5 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none transition-all"
-          />
-          <input
-            type="text" placeholder="نام خانوادگی" value={lastName} onChange={(e) => setLastName(e.target.value)} required
-            className="w-full px-5 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none transition-all"
-          />
+          <div className="relative">
+            <input
+              type="text" placeholder="نام" value={firstName} onChange={(e) => setFirstName(e.target.value)} required
+              className="w-full px-5 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none transition-all"
+            />
+          </div>
+          <div className="relative">
+            <input
+              type="text" placeholder="نام خانوادگی" value={lastName} onChange={(e) => setLastName(e.target.value)} required
+              className="w-full px-5 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 border-none transition-all"
+            />
+          </div>
         </div>
 
         <div className="relative group">
@@ -116,13 +112,17 @@ export default function SignupForm() {
           <Lock className="absolute right-4 top-4 text-gray-300 group-focus-within:text-indigo-500 transition-colors" size={20} />
         </div>
 
-        {error && <div className="text-red-500 text-xs bg-red-50 p-3 rounded-xl border-r-4 border-red-500 font-bold">{error}</div>}
+        {error && (
+          <div className="text-red-500 text-xs bg-red-50 p-4 rounded-xl border-r-4 border-red-500 font-bold italic shadow-sm">
+            {error}
+          </div>
+        )}
 
         <button
           disabled={loading}
-          className="w-full py-5 bg-indigo-600 text-white rounded-[1.8rem] font-black text-lg hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:bg-gray-200"
+          className="w-full py-5 bg-indigo-600 text-white rounded-[1.8rem] font-black text-lg hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
         >
-          {loading ? 'صبر کنید...' : 'تایید و عضویت'}
+          {loading ? 'صبر کنید...' : 'عضویت و ادامه'}
           <ArrowLeft size={20} />
         </button>
       </form>

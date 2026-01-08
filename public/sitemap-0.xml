@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+<url><loc>https://mosishop.ir/about</loc><lastmod>2026-01-08T08:04:47.179Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir/auth/login</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir/auth/signup</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir/brands</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir/cart</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir/checkout</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir/contact</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir/payment-result</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir/products</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir/profile</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir/tickets</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+<url><loc>https://mosishop.ir/track-order</loc><lastmod>2026-01-08T08:04:47.180Z</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>
+</urlset>

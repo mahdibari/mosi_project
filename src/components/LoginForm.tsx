@@ -17,7 +17,7 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
-  const searchParams = useSearchParams(); // این هوک فقط داخل Suspense کار می‌کند
+  const searchParams = useSearchParams();
   const returnUrl = searchParams.get('returnUrl') || '/';
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -29,6 +29,7 @@ export default function LoginForm() {
       const engPhone = toEnglishDigits(phone);
       const generatedEmail = `${engPhone}@temp.domain`;
 
+      // ورود با استفاده از ایمیل ساخته شده از شماره موبایل
       const { error: loginError } = await supabase.auth.signInWithPassword({
         email: generatedEmail,
         password,
@@ -54,7 +55,7 @@ export default function LoginForm() {
           <LogIn size={32} />
         </div>
         <h2 className="text-3xl font-black text-gray-800">ورود به حساب</h2>
-        <p className="text-gray-400 mt-2 text-sm">خوشحالیم که دوباره شما را می‌بینیم</p>
+        <p className="text-gray-400 mt-2 text-sm">لطفاً شماره موبایل و رمز خود را وارد کنید</p>
       </div>
 
       <form onSubmit={handleLogin} className="space-y-6">
@@ -64,7 +65,7 @@ export default function LoginForm() {
             onChange={(e) => setPhone(e.target.value)} required
             className="w-full pr-12 pl-4 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 border-none transition-all text-left font-bold"
           />
-          <Phone className="absolute right-4 top-4 text-gray-300 group-focus-within:text-blue-500 transition-colors" size={20} />
+          <Phone className="absolute right-4 top-4 text-gray-300 group-focus-within:text-blue-500" size={20} />
         </div>
 
         <div className="relative group">
@@ -73,10 +74,14 @@ export default function LoginForm() {
             onChange={(e) => setPassword(e.target.value)} required
             className="w-full pr-12 pl-4 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 border-none transition-all"
           />
-          <Lock className="absolute right-4 top-4 text-gray-300 group-focus-within:text-blue-500 transition-colors" size={20} />
+          <Lock className="absolute right-4 top-4 text-gray-300 group-focus-within:text-blue-500" size={20} />
         </div>
 
-        {error && <div className="text-red-500 text-xs bg-red-50 p-4 rounded-xl border-r-4 border-red-500 font-bold">{error}</div>}
+        {error && (
+          <div className="text-red-500 text-xs bg-red-50 p-4 rounded-xl border-r-4 border-red-500 font-bold">
+            {error}
+          </div>
+        )}
 
         <button
           disabled={loading}
