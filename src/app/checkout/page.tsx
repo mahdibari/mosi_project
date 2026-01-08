@@ -11,15 +11,16 @@ import {
   CreditCard, 
   Truck, 
   ShieldCheck, 
+  ArrowRight,
   AlertCircle
 } from 'lucide-react';
 import { formatToToman } from '@/utils/formatPrice';
 import Image from 'next/image';
 
-// تابع تبدیل اعداد
+// تابع هوشمند برای تبدیل اعداد فارسی/عربی به انگلیسی
 const toEnglishDigits = (str: string) => {
   return str.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString())
-            .replace(/[٠-٩]/g, (d) => '٠١٢٣٤۵٦٧۸٩'.indexOf(d).toString());
+            .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d).toString());
 };
 
 function CheckoutContent() {
@@ -48,6 +49,8 @@ function CheckoutContent() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    
+    // تبدیل خودکار اعداد فارسی به انگلیسی در فیلدهای حساس
     const processedValue = (name === 'phone' || name === 'postal_code') 
       ? toEnglishDigits(value) 
       : value;
@@ -74,71 +77,53 @@ function CheckoutContent() {
     if (!validateForm()) return;
 
     setIsSubmitting(true);
-
     try {
-      console.log('1. بررسی وضعیت کاربر...');
-
-      // 1. دریافت سشن فعلی
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // ۱. ایجاد کاربر ناشناس در صورت عدم وجود نشست
+      const { data, error: userError } = await supabase.auth.getUser();
+      let user = data.user;
       
-      let userId: string | undefined;
-
-      // 2. منطق خرید مهمان (اصلاحیه اصلی اینجا است)
-      if (session && session.user) {
-        // اگر قبلا لاگین است
-        userId = session.user.id;
-        console.log('1.1. کاربر لاگین است:', userId);
-      } else {
-        // اگر لاگین نیست -> لاگین ناشناس انجام شود (بدون ریدایرکت)
-        console.log('1.2. کاربر مهمان است، در حال ایجاد سشن ناشناس...');
+      if (!user || userError) {
+        await supabase.auth.signOut(); // پاکسازی سشن‌های احتمالی قبلی
         const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
-        
-        if (anonError || !anonData.user) {
-          console.error("خطا در ورود ناشناس:", anonError);
-          throw new Error('مشکلی در سیستم ثبت سفارش پیش آمد. لطفا صفحه را رفرش کنید.');
-        }
-        userId = anonData.user.id;
-        console.log('1.3. سشن ناشناس ساخته شد:', userId);
+        if (anonError) throw new Error(`خطای سیستم: ${anonError.message}`);
+        user = anonData.user;
       }
 
-      if (!userId) {
-        throw new Error("شناسه کاربر پیدا نشد.");
-      }
+      if (!user) throw new Error("خطا در شناسایی کاربر.");
 
-      // 3. ثبت آدرس
-      console.log('2. ثبت آدرس...');
+      // ۲. ثبت کاربر در جدول عمومی برای رعایت روابط دیتابیس 
+      const { error: publicUserError } = await supabase
+        .from('users')
+        .upsert({ 
+            id: user.id, 
+            email: user.email || 'guest@example.com',
+            first_name: formData.full_name.split(' ')[0],
+            last_name: formData.full_name.split(' ').slice(1).join(' ')
+        }, { onConflict: 'id' });
+
+      // ۳. ثبت آدرس پستی 
       const { data: newAddress, error: addressError } = await supabase
         .from('addresses')
-        .insert([{ ...formData, user_id: userId }])
-        .select()
-        .single();
+        .insert([{ ...formData, user_id: user.id }])
+        .select().single();
 
-      if (addressError) {
-        console.error('خطای آدرس:', addressError);
-        throw new Error('خطا در ثبت آدرس');
-      }
+      if (addressError) throw addressError;
 
-      // 4. ثبت سفارش
-      console.log('3. ثبت سفارش...');
+      // ۴. ایجاد رکورد سفارش [cite: 63]
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert([{
-          user_id: userId,
+          user_id: user.id,
           address_id: newAddress.id,
-          total_amount: cartTotal, 
+          total_amount: cartTotal,
           status: 'pending',
         }])
-        .select()
-        .single();
+        .select().single();
 
-      if (orderError) {
-        console.error('خطای سفارش:', orderError);
-        throw new Error('خطا در ایجاد سفارش');
-      }
+      if (orderError) throw orderError;
 
-      // 5. ثبت محصولات سفارش
-      console.log('4. ثبت آیتم‌ها...');
-      const orderItems = cartItems.map(item => ({
+      // ۵. ثبت آیتم‌های سبد خرید [cite: 65, 66]
+      const orderItemsToInsert = cartItems.map(item => ({
         order_id: newOrder.id,
         product_id: item.product.id,
         quantity: item.quantity,
@@ -147,55 +132,36 @@ function CheckoutContent() {
           : item.product.price,
       }));
 
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItemsToInsert);
+
       if (itemsError) throw itemsError;
 
-      // 6. ارسال به درگاه پرداخت (با Timeout برای جلوگیری از هنگ کردن موبایل)
-      console.log('5. انتقال به درگاه...');
-      
+      // ۶. فراخوانی API درگاه پرداخت (بیت‌پی) 
       const paymentData = {
         amount: cartTotal,
         name: formData.full_name,
         phone: formData.phone,
-        description: `سفارش ${newOrder.id}`,
         factorId: newOrder.id,
         redirectUrl: `${window.location.origin}/api/payment/callback`,
       };
-
-      // اضافه شده: کنترل تایم‌اوت برای موبایل
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 ثانیه مهلت
 
       const response = await fetch('/api/payment/initiate-bitpay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(paymentData),
-        signal: controller.signal
       });
 
-      clearTimeout(timeoutId); // پاک کردن تایمر اگر پاسخ سریع آمد
-
-      if (!response.ok) {
-        throw new Error('پاسخی از سرور دریافت نشد. لطفا اینترنت خود را چک کنید.');
-      }
-
-      const result = await response.json();
-
-      if (result.success && result.bitpayRedirectUrl) {
-        window.location.href = result.bitpayRedirectUrl;
+      const resData = await response.json();
+      if (resData.success) {
+        window.location.href = resData.bitpayRedirectUrl; [cite: 72]
       } else {
-        throw new Error(result.message || 'خطا در اتصال به درگاه');
+        throw new Error(resData.message);
       }
     
     } catch (error: any) {
-      console.error('خطای نهایی:', error);
-      let msg = 'مشکلی پیش آمد، لطفاً دوباره تلاش کنید.';
-      if (error.name === 'AbortError') {
-        msg = 'اتصال به درگاه زمان زیادی برد (Timeout). لطفا اتصال اینترنت خود را چک کنید.';
-      } else if (error.message) {
-        msg = error.message;
-      }
-      alert(msg);
+      alert(error.message || 'خطایی در ثبت سفارش رخ داد');
     } finally {
       setIsSubmitting(false);
     }
