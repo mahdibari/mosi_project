@@ -51,8 +51,8 @@ function CheckoutContent() {
     },
     {
       icon: <RefreshCcw className="w-5 h-5" />,
-      title: 'شرایط مرجوعی',
-      content: 'تا ۷ روز امکان مرجوعی وجود دارد.',
+      title: ' فیلتر شکن',
+      content: 'فیلتر شکن خود را برای ثبت خرید خاموش کنید',
     },
   ];
 
@@ -163,7 +163,7 @@ function CheckoutContent() {
     return Object.keys(newErrors).length === 0;
   };
 
-   const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
@@ -174,30 +174,36 @@ function CheckoutContent() {
       const { data, error: userError } = await supabase.auth.getUser();
       let user = data.user;
       
-      // 2. اگر کاربر لاگین نیست، تلاش برای ثبت مهمان
+      // 2. اگر کاربر لاگین نیست، ثبت نام ناشناس انجام می‌شود
       if (!user || userError) {
-        
-        // --- مهم: پاک کردن سشن‌های قدیمی برای جلوگیری از تداخل ---
-        await supabase.auth.signOut();
-
+        await supabase.auth.signOut(); // پاکسازی سشن قبلی
         const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
         
-        // --- دیباگ: چاپ خطای واقعی در کنسول (فقط برای شما) ---
         if (anonError) {
-          console.error("خطای اصلی ساپابیس:", anonError); 
-          // حالا متن واقعی خطای ساپابیس را به کاربر نشان بده
+          console.error("خطای اصلی ساپابیس:", anonError);
           throw new Error(`خطای سیستم: ${anonError.message}`);
         }
-        
         user = anonData.user;
       }
 
-      // چک کردن وجود کاربر (امنیت تایپ‌اسکریپت)
+      // 3. اطمینان از وجود کاربر
       if (!user) {
         throw new Error("خطا در شناسایی کاربر. لطفاً صفحه را رفرش کنید.");
       }
 
-      // 3. ثبت آدرس
+      // --- افزودن شده: ساخت دستی پروفایل برای کاربر مهمان ---
+      // چون ترایگر را حذف کردیم، باید خودمان یک ردیف در جدول profiles بسازیم
+      const { error: profileError } = await supabase
+        .from('users')
+        .upsert({ id: user.id }, { onConflict: 'id' }); // اگر وجود داشت آپدیت می‌کند، اگر نه جدید می‌سازد
+      
+      if (profileError) {
+        console.warn("خطا در ساخت پروفایل ناشناس:", profileError);
+        // اگر جدول شما 'profiles' نیست، ممکن است خطا بدهد اما برنامه نباید متوقف شود
+      }
+      // -------------------------------------------------------
+
+      // 4. ثبت آدرس
       const { data: newAddress, error: addressError } = await supabase
         .from('addresses')
         .insert([{ 
@@ -209,7 +215,7 @@ function CheckoutContent() {
 
       if (addressError) throw addressError;
 
-      // 4. ثبت سفارش
+      // 5. ثبت سفارش
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert([{
@@ -223,7 +229,7 @@ function CheckoutContent() {
 
       if (orderError) throw orderError;
 
-      // 5. ثبت آیتم‌های سفارش
+      // 6. ثبت آیتم‌های سفارش
       const orderItemsToInsert = cartItems.map(item => ({
         order_id: newOrder.id,
         product_id: item.product.id,
@@ -239,7 +245,7 @@ function CheckoutContent() {
 
       if (itemsError) throw itemsError;
 
-      // 6. درخواست پرداخت
+      // 7. درخواست پرداخت
       const callbackUrl = `${window.location.origin}/api/payment/callback`;
       const firstProductName = cartItems[0]?.product.name || 'محصولات منتخب';
       
