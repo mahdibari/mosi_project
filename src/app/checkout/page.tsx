@@ -140,10 +140,27 @@ function CheckoutContent() {
       </main>
     );
   }
+ const toEnglishDigits = (str: string) => {
+    const map: Record<string, string> = {
+      '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
+      '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
+      '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+      '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
+    };
+    return str.replace(/[۰-۹٠-٩]/g, (m) => map[m]);
+  };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+ const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    let finalValue = value;
+
+    // اگر فیلد تلفن یا کد پستی است، اعداد را به انگلیسی تبدیل کن
+    if (name === 'phone' || name === 'postal_code') {
+      finalValue = toEnglishDigits(value);
+    }
+
+    setFormData(prev => ({ ...prev, [name]: finalValue }));
+    
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
