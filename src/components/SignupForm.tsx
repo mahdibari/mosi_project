@@ -20,7 +20,7 @@ export default function SignupForm() {
   const [loading, setLoading] = useState(false);
   
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // استفاده امن داخل Suspense
   const returnUrl = searchParams.get('returnUrl') || '/';
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -32,6 +32,7 @@ export default function SignupForm() {
       const engPhone = toEnglishDigits(phone);
       const generatedEmail = `${engPhone}@temp.domain`;
 
+      // ۱. ثبت‌نام در Auth
       const { data: authData, error: signupError } = await supabase.auth.signUp({
         email: generatedEmail,
         password,
@@ -41,6 +42,7 @@ export default function SignupForm() {
       if (signupError) throw signupError;
 
       if (authData.user) {
+        // ۲. ثبت در جدول profile شما
         const { error: dbError } = await supabase
           .from('profile')
           .upsert({
@@ -59,7 +61,7 @@ export default function SignupForm() {
           router.refresh();
         }, 2000);
       }
-   
+    
     } finally {
       setLoading(false);
     }
@@ -67,12 +69,12 @@ export default function SignupForm() {
 
   if (success) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-[2.5rem] shadow-2xl border border-green-50 animate-in zoom-in duration-500">
-        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6 shadow-inner">
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-[2.5rem] shadow-2xl border border-green-50">
+        <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-6">
           <CheckCircle2 size={40} />
         </div>
-        <h2 className="text-2xl font-black text-gray-800 mb-2">ثبت‌نام انجام شد!</h2>
-        <p className="text-gray-500">در حال انتقال به صفحه مقصد...</p>
+        <h2 className="text-2xl font-black text-gray-800 mb-2">ثبت‌نام موفق!</h2>
+        <p className="text-gray-500">در حال هدایت به مقصد...</p>
       </div>
     );
   }
@@ -84,7 +86,6 @@ export default function SignupForm() {
           <UserPlus size={32} />
         </div>
         <h2 className="text-3xl font-black text-gray-800">ایجاد حساب</h2>
-        <p className="text-gray-400 mt-2 text-sm">به جمع کاربران ما خوش آمدید</p>
       </div>
 
       <form onSubmit={handleSignup} className="space-y-4">
@@ -121,7 +122,7 @@ export default function SignupForm() {
           disabled={loading}
           className="w-full py-5 bg-indigo-600 text-white rounded-[1.8rem] font-black text-lg hover:bg-indigo-700 shadow-xl shadow-indigo-200 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:bg-gray-200"
         >
-          {loading ? 'در حال ثبت نام...' : 'عضویت سریع'}
+          {loading ? 'صبر کنید...' : 'تایید و عضویت'}
           <ArrowLeft size={20} />
         </button>
       </form>
