@@ -14,7 +14,8 @@ import {
   MessageCircle, 
   Package, 
   Tag, 
-  Zap 
+  Zap, 
+  Check // اضافه شده برای نمایش وضعیت اضافه شده
 } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import Toast from './Toast';
@@ -25,6 +26,7 @@ export default function ProductCard({ product }: { product: Product }) {
   const [userLiked, setUserLiked] = useState(false);
   const [isLiking, setIsLiking] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isAdded, setIsAdded] = useState(false); // وضعیت جدید برای اضافه شدن به سبد
   
   const { addToCart } = useCart();
   
@@ -52,6 +54,7 @@ export default function ProductCard({ product }: { product: Product }) {
   };
 
   const handleLike = async () => {
+    // برای لایک همچنان نیاز به لاگین وجود دارد
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       setToast({ show: true, msg: 'لطفاً ابتدا وارد حساب خود شوید', type: 'error' });
@@ -84,10 +87,19 @@ export default function ProductCard({ product }: { product: Product }) {
   };
 
   const handleAddToCart = async () => {
+    // این فانکشن چک کردن سشن ندارد، پس کاربر مهمان می‌تواند استفاده کند
     setIsAddingToCart(true);
     try {
       await addToCart(product);
+      
+      // تغییر وضعیت به "اضافه شده"
+      setIsAdded(true);
+      
       setToast({ show: true, msg: 'محصول به سبد خرید اضافه شد', type: 'success' });
+      
+      // اختیاری: اگر می‌خواهید پس از چند ثانیه دکمه به حالت قبل برگردد، خط زیر را فعال کنید:
+      // setTimeout(() => setIsAdded(false), 3000);
+      
     } catch (err) {
       setToast({ show: true, msg: 'خطا در افزودن به سبد', type: 'error' });
     } finally {
@@ -189,29 +201,49 @@ export default function ProductCard({ product }: { product: Product }) {
               <span className="text-[10px] font-bold text-gray-400">تومان</span>
             </div>
           </div>
- {/* دکمه مشاهده جزئیات (جدید) */}
-            <Link 
+ <Link 
               href={`/products/${product.id}`}
               className="p-3 lg:p-4 rounded-2xl bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all active:scale-95 flex items-center justify-center"
               title="مشاهده جزئیات"
             >
               <Eye size={20} />
             </Link>
-          <button 
-            onClick={handleAddToCart}
-            disabled={isAddingToCart || product.stock_quantity <= 0}
-            className={`relative p-4 rounded-2xl transition-all active:scale-95 flex items-center justify-center ${
-              product.stock_quantity > 0 
-                ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none' 
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            {isAddingToCart ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <ShoppingCart size={20} />
-            )}
-          </button>
+          {/* دکمه خرید با تغییر وضعیت */}
+         <button 
+  onClick={handleAddToCart}
+  disabled={isAddingToCart || product.stock_quantity <= 0 || isAdded}
+  className={`
+    relative overflow-hidden p-4 rounded-2xl transition-all duration-300 
+    active:scale-95 flex items-center justify-center
+    ${
+      isAdded 
+        ? 'bg-green-500 text-white shadow-lg shadow-green-200 dark:shadow-none scale-110 ring-4 ring-green-100 dark:ring-green-900' 
+        : product.stock_quantity > 0 
+          ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none hover:scale-105' 
+          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+    }
+  `}
+>
+  {isAddingToCart ? (
+    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+  ) : isAdded ? (
+    // آیکون تیک با انیمیشن Pop
+    <div className="animate-[pop_0.4s_ease-out_forwards]">
+      <Check size={20} />
+    </div>
+  ) : (
+    <ShoppingCart size={20} />
+  )}
+</button>
+
+{/* استایل انیمیشن Pop - این را دقیقا بعد از تگ بسته شدن کامپوننت اصلی قرار دهید */}
+<style jsx>{`
+  @keyframes pop {
+    0% { transform: scale(0); opacity: 0; }
+    50% { transform: scale(1.4); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+`}</style>
         </div>
       </div>
 

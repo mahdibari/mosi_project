@@ -231,13 +231,38 @@ function CheckoutContent() {
 
               <div className="md:col-span-2 pt-4">
                 <button 
-                  type="submit" 
-                  disabled={isSubmitting}
-                  className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 dark:shadow-none disabled:bg-gray-400 disabled:shadow-none"
-                >
-                  {isSubmitting ? "در حال اتصال به درگاه..." : "تایید و پرداخت آنلاین"}
-                  <CreditCard size={24} />
-                </button>
+  type="submit" 
+  disabled={isSubmitting}
+  className={`
+    group relative w-full py-5 overflow-hidden rounded-2xl
+    bg-gradient-to-r from-indigo-600 to-purple-700
+    text-white font-black text-lg
+    shadow-2xl shadow-indigo-500/40 transition-all duration-300
+    hover:scale-[1.02] hover:shadow-indigo-500/60 hover:brightness-110
+    active:scale-[0.98]
+    disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:active:scale-100
+  `}
+>
+  {/* افکت درخشش (Shine Effect) - لایه نوری روی دکمه */}
+  <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+
+  {/* محتوای دکمه */}
+  <div className="relative flex items-center justify-center gap-3">
+    {isSubmitting ? (
+      <>
+        {/* لودینگ اسپینر */}
+        <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+        <span>در حال اتصال به درگاه...</span>
+      </>
+    ) : (
+      <>
+        <span className="tracking-wide">تایید و پرداخت آنلاین</span>
+        {/* آیکون کارت با انیمیشن ملایم برای جلب توجه */}
+        <CreditCard size={24} className="animate-bounce" />
+      </>
+    )}
+  </div>
+</button>
               </div>
             </form>
           </div>

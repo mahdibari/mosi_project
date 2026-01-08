@@ -19,7 +19,7 @@ export default function ProductStructuredData({ product }: ProductStructuredData
     "mpn": product.id,
     "brand": {
       "@type": "Brand",
-      "name": "نام برند شما"
+      "name": "مصی شاپ  "
     },
     "aggregateRating": {
       "@type": "AggregateRating",

@@ -27,18 +27,19 @@ export default function RootLayout({
     <html lang="fa" dir="rtl">
      
       <body className="min-h-screen flex flex-col">
-        <Header />
+       
         <main className="flex-grow">
      
            <CartProvider>
+             <Header />
           {children}
-           
+           <Footer />
             </CartProvider>
           
        
           
           </main>
-        <Footer />
+        
       </body>
     </html>
   );
